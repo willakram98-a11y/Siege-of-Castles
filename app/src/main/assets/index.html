@@ -85,6 +85,7 @@ details ul{margin:6px 0 0;padding-right:18px;line-height:1.7}
 .opt:active{transform:scale(.97)}
 .or{color:#8e99a8;font-size:12px;margin:10px 0 6px}
 .code-in{width:100%;height:50px;border-radius:12px;border:1px solid #475569;background:#0f151e;color:#fff;font-size:26px;letter-spacing:8px;text-align:center;font-weight:800;direction:ltr;text-transform:uppercase;-webkit-user-select:text;user-select:text;font-family:ui-monospace,Menlo,monospace}
+.ip-in{width:100%;height:46px;margin-top:6px;border-radius:12px;border:1px solid #475569;background:#0f151e;color:#fff;font-size:20px;text-align:center;font-weight:700;direction:ltr;-webkit-user-select:text;user-select:text;font-family:ui-monospace,Menlo,monospace}
 .bigcode{font-size:44px;font-weight:900;letter-spacing:10px;color:#fbbf24;background:#0f151e;border:1px dashed #fbbf24;border-radius:14px;padding:10px 0;margin:6px 0 10px;font-family:ui-monospace,Menlo,monospace}
 .row2b{display:flex;gap:8px;margin:6px 0}
 .sm{flex:1;height:40px;border-radius:10px;border:1px solid #475569;background:#263142;color:#fff;font-weight:700;font-size:14px;font-family:inherit}
@@ -2066,7 +2067,66 @@ function autoConnect(code, role){
   NET.wait = setTimeout(() => { if (!NET.connected) netStatus('⌛ لم يُعثر على اللاعب الآخر بعد. تأكد من الرمز ومن اتصال الهاتفين بالإنترنت، أو جرّب وضع «بدون إنترنت».'); }, 45000);
 }
 
-/* ---------- الاتصال بدون إنترنت (WebRTC مباشر عبر الواي فاي + رمز QR) ---------- */
+/* ---------- بدون إنترنت داخل تطبيق أندرويد: اتصال مباشر عبر نقطة اتصال أحد الهاتفين ----------
+   WebRTC على أندرويد لا يستخدم شبكة الواي فاي التي بلا إنترنت، لذلك يتولى التطبيق الاتصال بنفسه */
+const LAN = window.AndroidLan || null;
+const LAN_ST = {
+  waiting:'⏳ بانتظار اتصال الضيف…',
+  searching:'🔎 جارٍ البحث عن المضيف…',
+  no_wifi:'⚠️ هذا الهاتف غير متصل بأي واي فاي — اتصل بنقطة اتصال المضيف',
+  port_busy:'تعذّر بدء الاستضافة — أغلق اللعبة وافتحها من جديد'
+};
+window.__lan = (type, data) => {
+  if (NET.mode !== 'lan') return;
+  if (type === 'open') netAttach(o => { try { LAN.send(JSON.stringify(o)); } catch(e){} }, () => { try { LAN.stop(); } catch(e){} });
+  else if (type === 'msg'){ let m; try { m = JSON.parse(data); } catch(e){ return; } onNetMsg(m); }
+  else if (type === 'close') netLost('closed');
+  else if (type === 'status' && !NET.connected){
+    const e = $('ovSt'); if (!e) return;
+    e.innerHTML = (data === 'waiting' || data === 'searching' ? '<span class="spin"></span> ' : '') + (LAN_ST[data] || '');
+  }
+};
+function lanStart(role, addr){
+  netReset(); NET.role = role; NET.mode = 'lan';
+  NET.cleanup.push(() => { try { LAN.stop(); } catch(e){} });
+  if (role === 'host') LAN.host(); else LAN.join(addr || '');
+}
+function lanHostScreen(){
+  showOv(`<h1>👑 المضيف</h1>
+    <div class="step">١. شغّل «نقطة الاتصال» (Hotspot) على هذا الهاتف من الإعدادات — لا تحتاج رصيد إنترنت.</div>
+    <div class="step">٢. على هاتف الضيف: اتصل بنقطة الاتصال هذه من إعدادات الواي فاي، ثم افتح اللعبة واختر «أنا الضيف».</div>
+    <p class="st" id="ovSt"></p><p class="sub" id="lanIp"></p>
+    <button class="big alt" id="bBack">إلغاء</button>`);
+  $('bBack').onclick = showOffline;
+  lanStart('host');
+  const showIp = () => {
+    const e = $('lanIp'); if (!e) return false;
+    let a = []; try { a = JSON.parse(LAN.addrs()); } catch(_){}
+    e.innerHTML = a.length ? 'عنوان هذا الهاتف (عند الحاجة): ' + a.map(x => `<bdi dir="ltr">${x}</bdi>`).join(' ، ') : '';
+    return true;
+  };
+  showIp();
+  const iv = setInterval(() => { if (!showIp()) clearInterval(iv); }, 2000);
+  NET.cleanup.push(() => clearInterval(iv));
+}
+function lanGuestScreen(addr){
+  showOv(`<h1>🎯 الضيف</h1>
+    <div class="step">اتصل بنقطة اتصال هاتف المضيف من إعدادات الواي فاي، وسيُعثر عليه تلقائياً.</div>
+    <div class="step">إذا سألك الهاتف أن الشبكة بلا إنترنت فاختر البقاء متصلاً بها.</div>
+    <p class="st" id="ovSt"></p>
+    <details class="paste"${addr ? ' open' : ''}><summary>لم يُعثر عليه؟ أدخل العنوان الظاهر على هاتف المضيف</summary>
+      <input id="inIp" class="ip-in" inputmode="decimal" autocomplete="off" placeholder="192.168.43.1" value="${addr || ''}"><button class="big alt" id="bIp">اتصال</button></details>
+    <button class="big alt" id="bBack">رجوع</button>`);
+  $('bBack').onclick = showOffline;
+  $('bIp').onclick = () => {
+    const v = ($('inIp').value || '').trim();
+    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(v)){ netStatus('اكتب العنوان بالأرقام، مثل 192.168.43.1'); return; }
+    lanGuestScreen(v);
+  };
+  lanStart('guest', addr);
+}
+
+/* ---------- الاتصال بدون إنترنت في المتصفح (WebRTC مباشر عبر الواي فاي + رمز QR) ---------- */
 const b64u = bytes => { let s = ''; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const unb64u = str => { str = str.replace(/-/g, '+').replace(/_/g, '/'); while (str.length % 4) str += '='; const bin = atob(str); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; };
 async function zipBytes(bytes, fmt, un){ const cs = un ? new DecompressionStream(fmt) : new CompressionStream(fmt); return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(cs)).arrayBuffer()); }
@@ -2189,7 +2249,7 @@ function showOv(html){ stopScan(); $('ovBox').innerHTML = html; $('ov').classLis
 function hideOv(){ stopScan(); $('ov').classList.add('hidden'); }
 const HOWTO = `<details><summary>📜 طريقة اللعب</summary><ul>
 <li>الهدف: دمّر <b>حصن</b> العدو لتستولي على قلعته قبل أن يفعل بك المثل.</li>
-<li>الميدان ٥٠×٥٠: أرضك وقلعتك ← خندق ← <b>أرض محايدة</b> ← خندق ← أرض العدو وقلعته.</li>
+<li>الميدان ٧٠×٥٠: أرضك وقلعتك ← خندق ← <b>أرض محايدة</b> ← خندق ← أرض العدو وقلعته.</li>
 <li>كل قلعة يحيط بها سور من الجهات الأربع، بأبراج في زواياها وبوابات أمامية وخلفية وجانبية؛ والأرض المكشوفة حولها تسمح بالالتفاف ومهاجمتها من أي جهة.</li>
 <li>تفقّد فجوات سورك في كل الجهات وسدّها، وضع رماتك على الأسوار الجانبية والخلفية أيضاً.</li>
 <li>اسحب بإصبع للتنقل، وقرّب أو بعّد بإصبعين (أو ＋ －). زر 🏰 يعيدك إلى قلعتك، وزر 📍 يأخذك إلى موقع الهجوم.</li>
@@ -2214,7 +2274,7 @@ function showMP(){
   netReset();
   showOv(`<h1>👥 لاعبان</h1><p class="sub">اختر طريقة الاتصال بين الهاتفين</p>
   <button class="opt" id="bAuto"><b>🌐 تلقائي</b><small>كلا الهاتفين متصلان بالإنترنت — يكفي رمز غرفة من ٥ أحرف</small></button>
-  <button class="opt" id="bOff"><b>📶 بدون إنترنت</b><small>الهاتفان على شبكة الواي فاي نفسها (أو نقطة اتصال أحدهما) — بمسح رمز QR</small></button>
+  <button class="opt" id="bOff"><b>📶 بدون إنترنت</b><small>${LAN ? 'عبر نقطة اتصال أحد الهاتفين — بدون رموز' : 'الهاتفان على شبكة الواي فاي نفسها (أو نقطة اتصال أحدهما) — بمسح رمز QR'}</small></button>
   <button class="big alt" id="bBack">رجوع</button>`);
   $('bAuto').onclick = showAuto; $('bOff').onclick = showOffline; $('bBack').onclick = showMenu;
 }
@@ -2253,6 +2313,14 @@ function showAuto(){
 }
 function showOffline(){
   netReset();
+  if (LAN){
+    showOv(`<h1>📶 بدون إنترنت</h1><p class="sub">شغّل «نقطة الاتصال» على أحد الهاتفين واتصل بها من الآخر (أو صِلهما بشبكة الواي فاي نفسها). لا حاجة للإنترنت ولا لرموز.</p>
+    <button class="opt" id="bH"><b>👑 أنا المضيف</b><small>نقطة الاتصال تعمل على هذا الهاتف</small></button>
+    <button class="opt" id="bG"><b>🎯 أنا الضيف</b><small>هذا الهاتف متصل بنقطة اتصال المضيف</small></button>
+    <button class="big alt" id="bBack">رجوع</button>`);
+    $('bBack').onclick = showMP; $('bH').onclick = lanHostScreen; $('bG').onclick = () => lanGuestScreen('');
+    return;
+  }
   showOv(`<h1>📶 بدون إنترنت</h1><p class="sub">صِل الهاتفين بالشبكة نفسها (أو شغّل نقطة اتصال على أحدهما واتصل بها من الآخر)، وافتح اللعبة على كليهما.</p>
   <button class="opt" id="bH"><b>👑 أنا المضيف</b><small>أعرض رمزاً يمسحه الضيف</small></button>
   <button class="opt" id="bG"><b>🎯 أنا الضيف</b><small>أمسح رمز المضيف</small></button>
@@ -2311,7 +2379,7 @@ function offGuestScreen(){
 }
 function showLobby(){
   clearTimeout(NET.wait);
-  const via = NET.mode === 'off' ? '📶 عبر الشبكة المحلية' : '🌐 عبر الإنترنت';
+  const via = NET.mode === 'off' || NET.mode === 'lan' ? '📶 عبر الشبكة المحلية' : '🌐 عبر الإنترنت';
   if (NET.role === 'host'){
     showOv(`<h1>✅ تم الاتصال</h1><p class="sub">${via}<br>أنت 🔵 الأزرق، وصديقك 🔴 الأحمر</p>
       <button class="big" id="bGo">ابدأ المعركة</button><p class="st" id="ovSt"></p><button class="big alt" id="bLeave">مغادرة</button>`);

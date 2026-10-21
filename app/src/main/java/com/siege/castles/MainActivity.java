@@ -31,6 +31,9 @@ import android.widget.FrameLayout;
 
 import androidx.webkit.WebViewAssetLoader;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 public class MainActivity extends Activity {
 
     // Served from a secure https address so WebRTC, crypto, camera and clipboard work.
@@ -49,6 +52,7 @@ public class MainActivity extends Activity {
     private WebView webView;
     private PermissionRequest pendingPermission;
     private AlertDialog exitDialog;
+    private LanLink lan;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,6 +81,14 @@ public class MainActivity extends Activity {
             v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
                     insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             return insets.consumeSystemWindowInsets();
+        });
+
+        // Offline two-phone mode: a direct link over one phone's hotspot or a shared Wi-Fi.
+        lan = new LanLink(new AndroidLanPlatform(this), new LanLink.Listener() {
+            @Override public void onStatus(String code) { lanEvent("status", code); }
+            @Override public void onOpen() { lanEvent("open", ""); }
+            @Override public void onMessage(String json) { lanEvent("msg", json); }
+            @Override public void onClose() { lanEvent("close", ""); }
         });
 
         // The match lives only in page memory, so always start from a fresh page.
@@ -110,6 +122,7 @@ public class MainActivity extends Activity {
                 .build();
 
         webView.addJavascriptInterface(new Bridge(), "AndroidApp");
+        webView.addJavascriptInterface(new LanBridge(), "AndroidLan");
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
@@ -139,6 +152,7 @@ public class MainActivity extends Activity {
             @Override
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
                 if (view != webView) return true;
+                lan.stop();
                 root.removeView(webView);
                 webView.destroy();
                 webView = null;
@@ -210,6 +224,41 @@ public class MainActivity extends Activity {
         }
     }
 
+    // Delivered in order on the UI thread, so the page sees "open" before any message.
+    private void lanEvent(String type, String data) {
+        final String js = "window.__lan&&window.__lan(" + JSONObject.quote(type) + "," + JSONObject.quote(data) + ")";
+        runOnUiThread(() -> {
+            if (webView != null) webView.evaluateJavascript(js, null);
+        });
+    }
+
+    private class LanBridge {
+        @JavascriptInterface
+        public void host() {
+            lan.host();
+        }
+
+        @JavascriptInterface
+        public void join(String address) {
+            lan.join(address);
+        }
+
+        @JavascriptInterface
+        public void send(String json) {
+            lan.send(json);
+        }
+
+        @JavascriptInterface
+        public void stop() {
+            lan.stop();
+        }
+
+        @JavascriptInterface
+        public String addrs() {
+            return new JSONArray(AndroidLanPlatform.localAddresses()).toString();
+        }
+    }
+
     private void hideSystemBars() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController c = getWindow().getInsetsController();
@@ -263,6 +312,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (lan != null) lan.stop();
         if (webView != null) {
             webView.destroy();
         }
