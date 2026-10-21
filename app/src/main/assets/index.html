@@ -1614,7 +1614,7 @@ function cmdTrain(T, type){
   if (!UDEF[type]) return;
   const prod = type === 'trebuchet' ? workshopOf(T) : G.keep[T];
   if (!prod || prod.dead){ notify(T, 'ابنِ «معمل المنجنيق» أولاً — والأفضل في الأرض المحايدة'); return; }
-  if (prod.queue.length >= 5){ notify(T, 'قائمة التدريب ممتلئة'); return; }
+  if (prod.queue.length >= 30){ notify(T, 'قائمة التدريب ممتلئة'); return; }
   const c = UDEF[type].cost;
   if (!canAfford(T, c)){ notify(T, missingFor(T, c)); return; }
   pay(T, c); prod.queue.push({type, t:0});
