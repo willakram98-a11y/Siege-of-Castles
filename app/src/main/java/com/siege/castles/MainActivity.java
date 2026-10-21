@@ -4,12 +4,13 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.graphics.Insets;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -19,6 +20,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -26,14 +28,14 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
-import android.window.OnBackInvokedDispatcher;
 
 import androidx.webkit.WebViewAssetLoader;
 
 public class MainActivity extends Activity {
 
     // Served from a secure https address so WebRTC, crypto, camera and clipboard work.
-    private static final String GAME_URL = "https://appassets.androidplatform.net/assets/index.html";
+    private static final String GAME_HOST = "appassets.androidplatform.net";
+    private static final String GAME_URL = "https://" + GAME_HOST + "/assets/index.html";
     private static final int CAMERA_REQUEST = 1;
 
     // The web page has no navigator.share inside an app, so route it to Android's share sheet.
@@ -43,24 +45,48 @@ public class MainActivity extends Activity {
             + "try{if(navigator.clipboard)navigator.clipboard.writeText=function(t){AndroidApp.copy(String(t));return Promise.resolve();};}catch(e){}"
             + "})();";
 
+    private FrameLayout root;
     private WebView webView;
     private PermissionRequest pendingPermission;
+    private AlertDialog exitDialog;
 
-    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        int bg = getColor(R.color.bg);
         Window window = getWindow();
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        window.setStatusBarColor(Color.parseColor("#0b1018"));
-        window.setNavigationBarColor(Color.parseColor("#0b1018"));
+        window.setStatusBarColor(bg);
+        window.setNavigationBarColor(bg);
 
-        FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.parseColor("#0b1018"));
+        root = new FrameLayout(this);
+        root.setBackgroundColor(bg);
+        setContentView(root);
 
+        // Keep the game clear of the notch, any visible bars and the keyboard.
+        // The insets are consumed here so the page does not add them a second time.
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Insets i = insets.getInsets(WindowInsets.Type.systemBars()
+                        | WindowInsets.Type.displayCutout()
+                        | WindowInsets.Type.ime());
+                v.setPadding(i.left, i.top, i.right, i.bottom);
+                return WindowInsets.CONSUMED;
+            }
+            v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                    insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+            return insets.consumeSystemWindowInsets();
+        });
+
+        // The match lives only in page memory, so always start from a fresh page.
+        createWebView();
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private void createWebView() {
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.parseColor("#0b1018"));
+        webView.setBackgroundColor(getColor(R.color.bg));
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         webView.setVerticalScrollBarEnabled(false);
         webView.setHorizontalScrollBarEnabled(false);
@@ -90,9 +116,34 @@ public class MainActivity extends Activity {
                 return assetLoader.shouldInterceptRequest(request.getUrl());
             }
 
+            // Only the game itself loads in the app (it is the only page that can use
+            // the AndroidApp bridge); any other link opens in the browser.
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri url = request.getUrl();
+                if (GAME_HOST.equals(url.getHost())) return false;
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, url));
+                } catch (ActivityNotFoundException ignored) {
+                }
+                return true;
+            }
+
             @Override
             public void onPageFinished(WebView view, String url) {
                 view.evaluateJavascript(SHARE_SHIM, null);
+            }
+
+            // If the page's renderer crashes or is killed for memory, reload the game
+            // instead of letting the whole app close.
+            @Override
+            public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                if (view != webView) return true;
+                root.removeView(webView);
+                webView.destroy();
+                webView = null;
+                createWebView();
+                return true;
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
@@ -105,31 +156,7 @@ public class MainActivity extends Activity {
         root.addView(webView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
-        setContentView(root);
-
-        // Keep the game clear of the camera notch and any bars that are showing.
-        root.setOnApplyWindowInsetsListener((v, insets) -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                Insets i = insets.getInsets(WindowInsets.Type.systemBars()
-                        | WindowInsets.Type.displayCutout());
-                v.setPadding(i.left, i.top, i.right, i.bottom);
-            } else {
-                v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
-                        insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
-            }
-            return insets;
-        });
-
-        if (Build.VERSION.SDK_INT >= 33) {
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::confirmExit);
-        }
-
-        if (savedInstanceState != null) {
-            webView.restoreState(savedInstanceState);
-        } else {
-            webView.loadUrl(GAME_URL);
-        }
+        webView.loadUrl(GAME_URL);
     }
 
     // The game asks for the camera to scan the other phone's QR code.
@@ -200,7 +227,8 @@ public class MainActivity extends Activity {
     }
 
     private void confirmExit() {
-        new AlertDialog.Builder(this)
+        if (exitDialog != null && exitDialog.isShowing()) return;
+        exitDialog = new AlertDialog.Builder(this)
                 .setMessage(R.string.exit_question)
                 .setPositiveButton(R.string.exit_yes, (d, w) -> finish())
                 .setNegativeButton(R.string.exit_no, null)
@@ -222,21 +250,15 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        webView.onResume();
-        webView.resumeTimers();
+        if (webView != null) webView.onResume();
     }
 
     @Override
     protected void onPause() {
-        webView.onPause();
-        webView.pauseTimers();
+        // Only onPause here, not pauseTimers: the page must stay able to run its
+        // visibilitychange handler and tell the other phone the match is paused.
+        if (webView != null) webView.onPause();
         super.onPause();
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        webView.saveState(outState);
     }
 
     @Override
