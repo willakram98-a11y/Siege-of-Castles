@@ -10,8 +10,8 @@ android {
         applicationId 'com.siege.castles'
         minSdk 26
         targetSdk 35
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '1.2'
     }
 
     // Release signing key is read from keystore.properties (kept out of git).

@@ -145,23 +145,23 @@ ${Oe}`;q.test(K)&&(j(H),H=setTimeout(V,Ps))},pe=()=>{k.iceGatheringState==="comp
 'use strict';
 const HEADLESS = typeof document === 'undefined';
 /* ================== الخريطة ==================
-   الصفوف (من الأعلى): أرض العدو 0-17 وفي وسطها قلعته | خندق 18-19 | الأرض المحايدة 20-29 | خندق 30-31 | أرضك 32-49 وفي وسطها قلعتك
+   الصفوف (من الأعلى): أرض العدو 0-27 وفيها قلعته | خندق 28-29 | الأرض المحايدة 30-39 | خندق 40-41 | أرضك 42-69 وفيها قلعتك
    كل قلعة سور كامل يحيط بالحصن من الجهات الأربع، بأبراج في الزوايا وبوابات في كل جهة، وحولها أرض مكشوفة */
-const COLS = 50, ROWS = 50;
-const MOAT_TOPS = [18, 30];
-const isMoat = y => y === 18 || y === 19 || y === 30 || y === 31;
-const isNeutral = y => y >= 20 && y <= 29;
+const COLS = 50, ROWS = 70;   // خلف كل قلعة 13 صفاً من الأرض المفتوحة
+const MOAT_TOPS = [28, 40];
+const isMoat = y => y === 28 || y === 29 || y === 40 || y === 41;
+const isNeutral = y => y >= 30 && y <= 39;
 const KEEP_W = 6, KEEP_H = 3, MIDX = 25;
 const idx = (x, y) => y * COLS + x;
 /* هندسة القلعة (معرّفة لقلعتك، وقلعة العدو صورتها المعكوسة تماماً) */
 const CASTLE = (function(){
   const mp = ([x, y]) => [COLS - 1 - x, ROWS - 1 - y];
   const mr = ([x, y], w, h) => [COLS - x - w, ROWS - y - h];
-  const base = {box:{x0:19, y0:38, x1:30, y1:46},
-    gates:[[24,38],[25,38],[24,46],[25,46],[19,42],[30,42]],
-    gaps:[[21,38],[28,38],[19,44],[30,40]],
-    towers:[[18,37],[30,37],[18,46],[30,46]],
-    keep:[22,41]};
+  const base = {box:{x0:19, y0:48, x1:30, y1:56},
+    gates:[[24,48],[25,48],[24,56],[25,56],[19,52],[30,52]],
+    gaps:[[21,48],[28,48],[19,54],[30,50]],
+    towers:[[18,47],[30,47],[18,56],[30,56]],
+    keep:[22,51]};
   const build = (b, T) => {
     const c = {T, box:b.box, gates:b.gates, gaps:b.gaps, towers:b.towers, keep:b.keep, ring:[], ringSet:new Set(), gateSet:new Set(), gapSet:new Set()};
     const {x0, y0, x1, y1} = b.box;
@@ -181,11 +181,11 @@ const isRing = (T, x, y) => CASTLE[T].ringSet.has(x + ',' + y);
 const inCastle = (T, x, y, pad) => { const b = CASTLE[T].box; pad = pad || 0; return x >= b.x0 - pad && x <= b.x1 + pad && y >= b.y0 - pad && y <= b.y1 + pad; };
 const inb = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
 const TEAM = [
-  {color:'#3b82f6', dark:'#1e3a8a', light:'#bfdbfe', rows:[32,49], front:32, nFront:20, homeMoat:30, farMoat:18},
-  {color:'#e5484d', dark:'#7f1d1d', light:'#fecaca', rows:[0,17],  front:16, nFront:28, homeMoat:18, farMoat:30}
+  {color:'#3b82f6', dark:'#1e3a8a', light:'#bfdbfe', rows:[42,69], front:42, nFront:30, homeMoat:40, farMoat:28},
+  {color:'#e5484d', dark:'#7f1d1d', light:'#fecaca', rows:[0,27],  front:26, nFront:38, homeMoat:28, farMoat:40}
 ];
-const depthOwn = (T, cy) => T === 0 ? cy - 32 : 18 - cy;
-const depthN = (T, cy) => T === 0 ? 30 - cy : cy - 20;
+const depthOwn = (T, cy) => T === 0 ? cy - 42 : 28 - cy;
+const depthN = (T, cy) => T === 0 ? 40 - cy : cy - 30;
 const RES = ['gold','iron','wood','stone'];
 const RICON = {gold:'🪙', iron:'🔩', wood:'🪵', stone:'🪨'};
 const RNAME = {gold:'ذهب', iron:'حديد', wood:'خشب', stone:'حجر'};
@@ -224,12 +224,12 @@ const DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 const DEP = new Array(COLS*ROWS).fill(null);
 (function(){
   const rect = (k, x0, y0, x1, y1) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){ DEP[idx(x,y)] = k; DEP[idx(COLS-1-x, ROWS-1-y)] = k; } };
-  rect('wood', 0,36, 2,39); rect('wood', 46,33, 49,35); rect('wood', 10,46, 12,48);
-  rect('stone', 40,42, 42,43); rect('stone', 5,33, 7,34);
-  rect('gold', 13,38, 14,39); rect('gold', 35,45, 36,46);
-  rect('iron', 37,34, 38,35); rect('iron', 6,43, 7,44);
+  rect('wood', 0,46, 2,49); rect('wood', 46,43, 49,45); rect('wood', 10,56, 12,58);
+  rect('stone', 40,52, 42,53); rect('stone', 5,43, 7,44);
+  rect('gold', 13,48, 14,49); rect('gold', 35,55, 36,56);
+  rect('iron', 37,44, 38,45); rect('iron', 6,53, 7,54);
   // الأرض المحايدة
-  rect('gold', 23,24, 26,25); rect('iron', 10,26, 11,27); rect('stone', 3,21, 5,22); rect('wood', 16,28, 18,29);
+  rect('gold', 23,34, 26,35); rect('iron', 10,36, 11,37); rect('stone', 3,31, 5,32); rect('wood', 16,38, 18,39);
 })();
 
 /* ================== الحالة ================== */
@@ -809,7 +809,11 @@ function doWork(u, dt){
 }
 function onBuilt(s){
   notify(s.team, '✅ اكتمل بناء: ' + SDEF[s.type].name);
-  for (const u of G.units.values()) if (u.order.target === s && u.order.type === 'build') setIdle(u);
+  const crew = [...G.units.values()].filter(u => u.order.target === s && u.order.type === 'build');
+  crew.forEach(setIdle);
+  // يعود البنّاؤون إلى ساحة القلعة أمام الحصن
+  const k = G.keep[s.team];
+  if (crew.length && k && !k.dead) moveGroup(crew, Math.floor(k.x + k.w / 2), s.team === 0 ? k.y - 1 : k.y + k.h);
 }
 function workersOn(s){ for (const u of G.units.values()) if ((u.order.type === 'build' || u.order.type === 'repair' || u.order.type === 'demolish') && u.order.target === s) return true; return false; }
 function nearestWorker(T, s, idleOnly){
@@ -962,7 +966,7 @@ function freeWallCell(T, u, taken){
 function findSpot(T, type, neutral){
   const sd = SDEF[type], tm = TEAM[T];
   const opts = [[sd.w, sd.h]]; if (sd.w !== sd.h) opts.push([sd.h, sd.w]);
-  const rows = neutral ? [20, 29] : tm.rows;
+  const rows = neutral ? [30, 39] : tm.rows;
   let best = null, bs = -1e9;
   for (const [w, h] of opts) for (let y = rows[0]; y <= rows[1] - h + 1; y++) for (let x = 0; x <= COLS - w; x++){
     if (!canPlace(T, type, x, y, w, h)) continue;
@@ -970,7 +974,7 @@ function findSpot(T, type, neutral){
     for (let dy = 0; dy < h && !bad; dy++) for (let dx = 0; dx < w; dx++){
       const X = x+dx, Y = y+dy;
       if (!neutral && (inCastle(T, X, Y, 2) || (X >= 23 && X <= 26 && (T === 0 ? Y < CASTLE[T].box.y0 : Y > CASTLE[T].box.y1)))) { bad = true; break; }
-      if (neutral && (Y === 20 || Y === 29) && X >= 18 && X <= 31 && type !== 'tower') { bad = true; break; }
+      if (neutral && (Y === 30 || Y === 39) && X >= 18 && X <= 31 && type !== 'tower') { bad = true; break; }
       if (sd.dep && DEP[idx(X, Y)] === sd.dep) m++;
     }
     if (bad) continue;
@@ -1140,8 +1144,8 @@ function buildTerrain(){
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++){
     const X = x * C, Y = y * C, ch = (x + y) % 2;
     let col, grass = false;
-    const T = y < 25 ? 1 : 0, inside = inCastle(T, x, y, 0) && !isRing(T, x, y);
-    const road = !inCastle(T, x, y, 0) && (inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 32 && y < 37) : (y > 12 && y <= 17))));
+    const T = y < ROWS / 2 ? 1 : 0, inside = inCastle(T, x, y, 0) && !isRing(T, x, y);
+    const road = !inCastle(T, x, y, 0) && (inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 && y < 47) : (y > 22 && y <= 27))));
     if (isMoat(y)) col = '#245a85';
     else if (isRing(T, x, y)) col = '#6b5b45';
     else if (inside) col = ch ? '#675e55' : '#5f574e';
@@ -1152,11 +1156,11 @@ function buildTerrain(){
     if (grass || road) for (let k = 0; k < 4; k++){ g.fillStyle = rnd() < .5 ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.07)'; g.fillRect(X + rnd()*C, Y + rnd()*C, 3, 4); }
     if (inside){ g.strokeStyle = 'rgba(0,0,0,.18)'; g.strokeRect(X + .5, Y + .5, C - 1, C - 1); }
   }
-  g.fillStyle = 'rgba(59,130,246,.07)'; g.fillRect(0, 32 * C, COLS * C, 18 * C);
-  g.fillStyle = 'rgba(239,68,68,.07)'; g.fillRect(0, 0, COLS * C, 18 * C);
+  g.fillStyle = 'rgba(59,130,246,.07)'; g.fillRect(0, 42 * C, COLS * C, 28 * C);
+  g.fillStyle = 'rgba(239,68,68,.07)'; g.fillRect(0, 0, COLS * C, 28 * C);
   g.strokeStyle = 'rgba(0,0,0,.13)'; g.lineWidth = 1; g.beginPath();
   for (let x = 1; x < COLS; x++){
-    for (const [a, b] of [[0, 18], [20, 30], [32, 50]]){ g.moveTo(x * C + .5, a * C); g.lineTo(x * C + .5, b * C); }
+    for (const [a, b] of [[0, 28], [30, 40], [42, ROWS]]){ g.moveTo(x * C + .5, a * C); g.lineTo(x * C + .5, b * C); }
   }
   for (let y = 1; y < ROWS; y++){ if (isMoat(y) || isMoat(y - 1)) continue; g.moveTo(0, y * C + .5); g.lineTo(COLS * C, y * C + .5); }
   g.stroke();
@@ -1167,7 +1171,7 @@ function buildTerrain(){
     g.fillStyle = '#3d2f20'; g.fillRect(0, my * C - 4, COLS * C, 5); g.fillRect(0, (my + 2) * C - 1, COLS * C, 5);
   }
   g.strokeStyle = 'rgba(250,204,21,.35)'; g.setLineDash([10, 8]); g.lineWidth = 2;
-  g.strokeRect(2, 20 * C + 2, COLS * C - 4, 10 * C - 4); g.setLineDash([]);
+  g.strokeRect(2, 30 * C + 2, COLS * C - 4, 10 * C - 4); g.setLineDash([]);
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++){
     const k = DEP[idx(x, y)]; if (!k) continue;
     const X = x * C, Y = y * C;
@@ -1526,13 +1530,16 @@ function onTap(sx, sy){
   }
   if (selection.size){
     const ids = selIds(), units = [...selection];
-    if (hit && hit.team !== ME){ act({c:'attack', k:'u', id:hit.id, ids}); mark(cx, cy, '#ef4444'); return; }
-    if (s && s.team !== ME){ act({c:'attack', k:'s', id:s.id, ids}); mark(cx, cy, '#ef4444'); return; }
-    if (s && s.team === ME && s.demo){ act({c:'work', k:'demolish', id:s.id, ids}); mark(cx, cy, '#f87171'); toast('🪓 توجّه الجنود للهدم'); return; }
-    if (s && s.team === ME && !s.built){ act({c:'work', k:'build', id:s.id, ids}); mark(cx, cy, '#fbbf24'); toast('🔨 توجّه الجنود للبناء'); return; }
-    if (s && s.team === ME && s.hp < s.maxHp && !(s.type === 'wall' && units.every(u => u.type === 'archer'))){ act({c:'work', k:'repair', id:s.id, ids}); mark(cx, cy, '#fbbf24'); toast('🔧 توجّه الجنود للإصلاح'); return; }
+    // بعد إعطاء الأمر يُلغى التحديد مباشرة (للجنود والمنجنيق)
+    const done = () => { selection.clear(); refreshSel(); };
+    if (hit && hit.team !== ME){ act({c:'attack', k:'u', id:hit.id, ids}); mark(cx, cy, '#ef4444'); done(); return; }
+    if (s && s.team !== ME){ act({c:'attack', k:'s', id:s.id, ids}); mark(cx, cy, '#ef4444'); done(); return; }
+    if (s && s.team === ME && s.demo){ act({c:'work', k:'demolish', id:s.id, ids}); mark(cx, cy, '#f87171'); toast('🪓 توجّه الجنود للهدم'); done(); return; }
+    if (s && s.team === ME && !s.built){ act({c:'work', k:'build', id:s.id, ids}); mark(cx, cy, '#fbbf24'); toast('🔨 توجّه الجنود للبناء'); done(); return; }
+    if (s && s.team === ME && s.hp < s.maxHp && !(s.type === 'wall' && units.every(u => u.type === 'archer'))){ act({c:'work', k:'repair', id:s.id, ids}); mark(cx, cy, '#fbbf24'); toast('🔧 توجّه الجنود للإصلاح'); done(); return; }
     act({c:'move', x:cx, y:cy, ids});
     mark(cx, cy, '#4ade80');
+    done();
     return;
   }
   if (s){
@@ -1770,7 +1777,7 @@ function startPlace(type){
 }
 function setGhost(cx, cy){
   const p = placing;
-  if (p.type === 'bridge'){ p.x = cx; p.y = Math.abs(cy - 18.5) < Math.abs(cy - 30.5) ? 18 : 30; }
+  if (p.type === 'bridge'){ p.x = cx; p.y = Math.abs(cy - 28.5) < Math.abs(cy - 40.5) ? 28 : 40; }
   else { p.x = Math.max(0, Math.min(COLS - p.w, cx - Math.floor((p.w - 1) / 2))); p.y = Math.max(0, Math.min(ROWS - p.h, cy - Math.floor((p.h - 1) / 2))); }
   const ok = canPlace(ME, p.type, p.x, p.y, p.w, p.h);
   $('placeTxt').textContent = ok ? (canAfford(ME, SDEF[p.type].cost) ? '✔ موقع مناسب — اضغط «ابنِ»' : 'موارد غير كافية') : '✖ لا يمكن البناء هنا';
@@ -1843,7 +1850,7 @@ function prodPops(dt){
 /* ================== اللعب الثنائي: المزامنة ==================
    المضيف يشغّل المحاكاة الكاملة ويرسل «لقطة» للضيف عشر مرات في الثانية،
    والضيف يرسل أوامره فقط. هذا يمنع اختلاف الحالة بين الهاتفين. */
-const NETV = 2;
+const NETV = 3;
 const UT = ['footman','archer','knight','trebuchet'], ST = Object.keys(SDEF), OT = ['idle','move','attack','assault','build','repair','demolish'];
 function netSend(o){ if (NET.connected && NET.send) try { NET.send(o); } catch(e){} }
 function sigOf(s){ return Math.ceil(s.hp) + '|' + (s.built ? 1 : 0) + '|' + ((s.progress * 100) | 0) + '|' + (s.demo ? 1 : 0) + '|' + (s.queue ? s.queue.map(q => q.type[0] + ((q.t * 10) | 0)).join(',') : ''); }
@@ -2346,7 +2353,7 @@ function showEnd(){
   };
   $('bMenu').onclick = () => { if (mp) leaveMatch(); else { startDemo(); showMenu(); } };
 }
-function startDemo(){ ME = 0; FLIP = false; newGame('normal', true); CS = Math.max(minZoom(), Math.min(maxZoom(), W / 22)); centerOn(MIDX, 25); }
+function startDemo(){ ME = 0; FLIP = false; newGame('normal', true); CS = Math.max(minZoom(), Math.min(maxZoom(), W / 22)); centerOn(MIDX, ROWS / 2); }
 
 function loop(ts){
   const dt = Math.min(.05, (ts - lastTs) / 1000 || 0); lastTs = ts;
@@ -2354,7 +2361,7 @@ function loop(ts){
     if (G.mp && NET.role === 'guest') guestTick(dt);
     else if (!G.paused && !G.over){ for (let k = 0; k < G.speed; k++) update(dt); }
     else if (G.over){ updateFx(dt); G.overT += dt; if (G.demo && G.overT > 4) startDemo(); }
-    if (G.demo && !G.over){ centerOn(MIDX + Math.sin(ts / 9000) * 12, 25 + Math.sin(ts / 6000) * 14); }
+    if (G.demo && !G.over){ centerOn(MIDX + Math.sin(ts / 9000) * 12, ROWS / 2 + Math.sin(ts / 6000) * 22); }
     prodPops(dt);
     if (G.mp && NET.connected){
       if (NET.role === 'host'){ NET.snapT -= dt; if (NET.snapT <= 0){ NET.snapT = .1; netSend(makeSnap()); } }
