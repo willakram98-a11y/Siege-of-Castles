@@ -1,6 +1,5 @@
 package com.siege.castles;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -8,7 +7,6 @@ import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
@@ -36,10 +34,9 @@ import org.json.JSONObject;
 
 public class MainActivity extends Activity {
 
-    // Served from a secure https address so WebRTC, crypto, camera and clipboard work.
+    // Served from a secure https address so WebRTC, crypto and the clipboard work.
     private static final String GAME_HOST = "appassets.androidplatform.net";
     private static final String GAME_URL = "https://" + GAME_HOST + "/assets/index.html";
-    private static final int CAMERA_REQUEST = 1;
 
     // The web page has no navigator.share inside an app, so route it to Android's share sheet.
     private static final String SHARE_SHIM =
@@ -50,7 +47,6 @@ public class MainActivity extends Activity {
 
     private FrameLayout root;
     private WebView webView;
-    private PermissionRequest pendingPermission;
     private AlertDialog exitDialog;
     private LanLink lan;
 
@@ -85,10 +81,10 @@ public class MainActivity extends Activity {
 
         // Offline two-phone mode: a direct link over one phone's hotspot or a shared Wi-Fi.
         lan = new LanLink(new AndroidLanPlatform(this), new LanLink.Listener() {
-            @Override public void onStatus(String code) { lanEvent("status", code); }
-            @Override public void onOpen() { lanEvent("open", ""); }
-            @Override public void onMessage(String json) { lanEvent("msg", json); }
-            @Override public void onClose() { lanEvent("close", ""); }
+            @Override public void onStatus(int session, String code) { lanEvent("status", session, code); }
+            @Override public void onOpen(int session) { lanEvent("open", session, ""); }
+            @Override public void onMessage(int session, String json) { lanEvent("msg", session, json); }
+            @Override public void onClose(int session) { lanEvent("close", session, ""); }
         });
 
         // The match lives only in page memory, so always start from a fresh page.
@@ -161,9 +157,10 @@ public class MainActivity extends Activity {
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
+            // The app never needs the camera or microphone.
             @Override
             public void onPermissionRequest(PermissionRequest request) {
-                runOnUiThread(() -> handlePermission(request));
+                runOnUiThread(request::deny);
             }
         });
 
@@ -171,37 +168,6 @@ public class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
         webView.loadUrl(GAME_URL);
-    }
-
-    // The game asks for the camera to scan the other phone's QR code.
-    private void handlePermission(PermissionRequest request) {
-        boolean wantsCamera = false;
-        for (String r : request.getResources()) {
-            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r)) wantsCamera = true;
-        }
-        if (!wantsCamera) {
-            request.deny();
-            return;
-        }
-        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-            request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
-        } else {
-            if (pendingPermission != null) pendingPermission.deny();
-            pendingPermission = request;
-            requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_REQUEST);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
-        super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode != CAMERA_REQUEST || pendingPermission == null) return;
-        if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
-            pendingPermission.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
-        } else {
-            pendingPermission.deny();
-        }
-        pendingPermission = null;
     }
 
     private class Bridge {
@@ -225,8 +191,9 @@ public class MainActivity extends Activity {
     }
 
     // Delivered in order on the UI thread, so the page sees "open" before any message.
-    private void lanEvent(String type, String data) {
-        final String js = "window.__lan&&window.__lan(" + JSONObject.quote(type) + "," + JSONObject.quote(data) + ")";
+    // The session number lets the page ignore events from an attempt it already cancelled.
+    private void lanEvent(String type, int session, String data) {
+        final String js = "window.__lan&&window.__lan(" + JSONObject.quote(type) + "," + JSONObject.quote(data) + "," + session + ")";
         runOnUiThread(() -> {
             if (webView != null) webView.evaluateJavascript(js, null);
         });
@@ -234,13 +201,13 @@ public class MainActivity extends Activity {
 
     private class LanBridge {
         @JavascriptInterface
-        public void host() {
-            lan.host();
+        public int host() {
+            return lan.host();
         }
 
         @JavascriptInterface
-        public void join(String address) {
-            lan.join(address);
+        public int join(String address) {
+            return lan.join(address);
         }
 
         @JavascriptInterface
