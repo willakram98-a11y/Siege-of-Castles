@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">حصار القلاع</string>
+    <string name="exit_question">هل تريد الخروج من اللعبة؟</string>
+    <string name="exit_yes">خروج</string>
+    <string name="exit_no">متابعة اللعب</string>
+</resources>
