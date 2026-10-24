@@ -211,10 +211,14 @@ const SDEF = {
   workshop:{name:'معمل المنجنيق', w:3,h:2, hp:420, mat:'wood', icon:'🛠️', cost:{gold:60,wood:100,iron:30}, time:16, info:'ينتج المنجنيق • ٦'}
 };
 const DEMOLISHABLE = ['lumber','quarry','goldmine','ironmine','workshop'];
+/* مستويات الصعوبة: think سرعة التفكير، inc الدخل، start موارد البداية، train سرعة التدريب،
+   first موعد أول هجوم، wave/grow/maxWave حجم الموجات، regroup أقصى انتظار بين الهجمات،
+   trebs عدد المنجنيقات، smart التجمّع قبل الهجوم واختيار أضعف جهة وصيد منجنيقات العدو، raid غارات على المناجم والمعامل،
+   wallArchers عدد الرماة على السور */
 const DIFF = {
-  easy:  {think:1.6, inc:.8,  wave:8, first:480, name:'سهل'},
-  normal:{think:.9,  inc:1.0, wave:7, first:330, name:'متوسط'},
-  hard:  {think:.45, inc:1.3, wave:6, first:210, name:'صعب'}
+  easy:  {think:1.6, inc:.8,  start:1,   train:1,   queue:2, builds:1, first:480, wave:8,  grow:2, maxWave:18, regroup:170, trebs:3, smart:false, raid:0,  wallArchers:5,  name:'سهل'},
+  normal:{think:.6,  inc:1.3, start:1.5, train:1.3, queue:3, builds:2, first:270, wave:9,  grow:3, maxWave:26, regroup:120, trebs:4, smart:true,  raid:0,  wallArchers:8,  name:'متوسط'},
+  hard:  {think:.3,  inc:1.75,start:2,   train:1.6, queue:3, builds:2, first:180, wave:12, grow:3, maxWave:36, regroup:90,  trebs:6, smart:true,  raid:75, wallArchers:12, name:'صعب'}
 };
 const BO = [{t:'lumber'},{t:'quarry'},{t:'goldmine'},{t:'ironmine'},{t:'goldmine'},{t:'tower'},{t:'workshop',n:1},{t:'tower',n:1},{t:'ironmine'},
             {t:'goldmine',n:1},{t:'tower'},{t:'quarry'},{t:'tower',n:1},{t:'lumber'},{t:'tower'},{t:'ironmine',n:1},{t:'goldmine'}];
@@ -242,7 +246,7 @@ const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
 const selection = new Set();
 let placing = null, repairMode = false, demoMode = false, pendingDemo = null, markers = [];
 
-function makeAI(team){ return {team, t:1, ti:0, skip:0, wave:DIFF[G ? G.diff : 'normal'].wave, lastAtk:0}; }
+function makeAI(team, diff){ const d = DIFF[diff] || DIFF.normal; return {team, d, t:1, ti:0, skip:0, wave:d.wave, lastAtk:0}; }
 
 function newGame(diff, demo, mp){
   G = {t:0, diff, demo:!!demo, mp:!!mp, units:new Map(), structs:new Map(), nid:1, nFx:[], nProj:[], nRm:[], nEv:[], netFull:true, lastAlert:null,
@@ -250,8 +254,9 @@ function newGame(diff, demo, mp){
        res:[{gold:160,iron:50,wood:120,stone:160},{gold:160,iron:50,wood:120,stone:160}],
        proj:[], fx:[], pings:[], keep:[null,null], ai:[null,null], over:false, winner:-1,
        paused:false, assignT:0, alertT:[-99,-99], pingT:[0,0], speed:1, overT:0, shake:0};
-  if (!mp) G.ai[1] = makeAI(1);
-  if (demo) G.ai[0] = makeAI(0);
+  if (!mp) G.ai[1] = makeAI(1, diff);
+  if (demo) G.ai[0] = makeAI(0, diff);
+  for (let T = 0; T < 2; T++) if (G.ai[T]) for (const k of RES) G.res[T][k] *= G.ai[T].d.start;
   for (let T = 0; T < 2; T++){
     const C = CASTLE[T];
     G.keep[T] = addStruct('keep', T, C.keep[0], C.keep[1], KEEP_W, KEEP_H, true);
@@ -298,7 +303,7 @@ function rates(T){
     const p = SDEF[s.type].prod; if (!p) continue;
     for (const k in p) r[k] += p[k] * (s.bonus || 1);
   }
-  const m = G.ai[T] ? DIFF[G.diff].inc : 1;
+  const m = G.ai[T] ? G.ai[T].d.inc : 1;
   for (const k in r) r[k] *= m;
   return r;
 }
@@ -765,8 +770,10 @@ function doAssault(u, dt){
   const o = u.order;
   if (o.via){
     const [vx, vy] = o.via;
-    if (Math.hypot(u.cx - vx, u.cy - vy) <= 2.5) o.via = null;
-    else {
+    if (Math.hypot(u.cx - vx, u.cy - vy) <= 2.5){
+      if (o.goAt && G.t < o.goAt){ u.path = []; return; }   // بانتظار بقية الموجة
+      o.via = null;
+    } else {
       const r = ensurePath(u, 'via', (x, y) => Math.hypot(x - vx, y - vy) <= 2, false, 3, (x, y) => Math.max(0, Math.hypot(x - vx, y - vy) - 2));
       if (r === 'none' && ++u.fails > 3){ o.via = null; u.fails = 0; }
       stepAlong(u, dt); return;
@@ -912,7 +919,7 @@ function update(dt){
     if (!s.built || s.demo) continue;
     const sd = SDEF[s.type];
     if (s.queue && s.queue.length){
-      const q = s.queue[0]; q.t += dt;
+      const q = s.queue[0]; q.t += dt * (G.ai[s.team] ? G.ai[s.team].d.train : 1);
       const ud = UDEF[q.type];
       if (q.t >= ud.time){
         const sp = findFreeNear(s, ud.size);
@@ -937,7 +944,7 @@ function update(dt){
   for (let T = 0; T < 2; T++){
     const ai = G.ai[T]; if (!ai) continue;
     ai.t -= dt;
-    if (ai.t <= 0){ ai.t = DIFF[G.diff].think; aiThink(ai); }
+    if (ai.t <= 0){ ai.t = ai.d.think; aiThink(ai); }
   }
 }
 function endGame(w){
@@ -998,6 +1005,23 @@ function findSpot(T, type, neutral){
   }
   return best;
 }
+/* أضعف جهة في قلعة العدو: أقل عدد من الرماة على سورها والأبراج القريبة منها */
+function weakSide(E){
+  const C = CASTLE[E], b = C.box, back = E === 0 ? b.y1 : b.y0;
+  const mid = {front:[C.cx, C.frontY], back:[C.cx, back], left:[b.x0, C.cy], right:[b.x1, C.cy]};
+  const score = {front:0, back:0, left:0, right:0};
+  for (const u of G.units.values()){
+    if (u.team !== E || !onOwnWall(u)) continue;
+    if (u.cy === C.frontY) score.front++; else if (u.cy === back) score.back++; else if (u.cx === b.x0) score.left++; else if (u.cx === b.x1) score.right++;
+  }
+  for (const s of G.structs.values()){
+    if (s.team !== E || s.type !== 'tower') continue;
+    for (const k in mid) if (Math.hypot(s.x + 1 - mid[k][0], s.y + 1 - mid[k][1]) < 7) score[k] += 2;
+  }
+  let best = 'front', bs = 1e9;
+  for (const k in score){ const v = score[k] + Math.random() * 1.5 + (k === 'back' ? .8 : 0); if (v < bs){ bs = v; best = k; } }
+  return best;
+}
 function bridgeOn(y){ for (const s of G.structs.values()) if (s.type === 'bridge' && s.y === y) return true; return false; }
 function aiThink(ai){
   const T = ai.team, E = 1 - T, tm = TEAM[T], R = G.res[T];
@@ -1013,6 +1037,8 @@ function aiThink(ai){
   for (const u of G.units.values()){
     if (u.team !== E) continue;
     if (inRows(T, u.cy) || nStructs.some(s => distPR(u.cx + .5, u.cy + .5, sRect(s)) < 4)) intr.push(u);
+    // المستويات الأذكى تخرج لتدمير منجنيق العدو قبل أن يهدم السور
+    else if (ai.d.smart && u.type === 'trebuchet' && inCastle(T, u.cx, u.cy, 13)) intr.push(u);
   }
   if (intr.length){
     for (const u of mine){
@@ -1050,7 +1076,7 @@ function aiThink(ai){
   let next = null; const need = {};
   for (const b of BO){ need[b.t] = (need[b.t] || 0) + 1; if ((cnt[b.t] || 0) < need[b.t]){ next = b; break; } }
   let saving = false;
-  if (next && pending < (G.diff === 'hard' ? 2 : 1)){
+  if (next && pending < ai.d.builds){
     let pick = next;
     if (!canAfford(T, SDEF[next.t].cost)){
       // إن كان المورد الناقص بلا دخل فلن يتوفر أبداً: ابنِ ما يُنتجه أولاً بدل الانتظار
@@ -1069,7 +1095,7 @@ function aiThink(ai){
   }
   // 6) التدريب
   const keep = G.keep[T];
-  if (keep && !keep.dead && keep.queue.length < 2 && (!saving || army < 5 || intr.length)){
+  if (keep && !keep.dead && keep.queue.length < ai.d.queue && (!saving || army < 5 || intr.length)){
     const type = intr.length && ai.ti % 2 ? 'footman' : TRAIN[ai.ti % TRAIN.length];
     if (canAfford(T, UDEF[type].cost)){ pay(T, UDEF[type].cost); keep.queue.push({type, t:0}); ai.ti++; ai.skip = 0; }
     else if (++ai.skip > 6){ ai.ti++; ai.skip = 0; }
@@ -1077,27 +1103,59 @@ function aiThink(ai){
   // 7) المنجنيق
   const ws = ss.find(s => s.type === 'workshop' && s.built && !s.demo);
   const trebs = mine.filter(u => u.type === 'trebuchet').length;
-  if (ws && !ws.queue.length && trebs < 3 && canAfford(T, UDEF.trebuchet.cost)){ pay(T, UDEF.trebuchet.cost); ws.queue.push({type:'trebuchet', t:0}); }
+  if (ws && !ws.queue.length && trebs < ai.d.trebs && canAfford(T, UDEF.trebuchet.cost)){ pay(T, UDEF.trebuchet.cost); ws.queue.push({type:'trebuchet', t:0}); }
   mine.forEach(u => { if (u.type === 'trebuchet' && free(u) && u.cy !== trebFront(u)) setOrder(u, {type:'assault'}); });
   // 8) الرماة على السور
-  let quota = 5 - mine.filter(u => u.type === 'archer' && onOwnWall(u)).length;
+  let quota = ai.d.wallArchers - mine.filter(u => u.type === 'archer' && onOwnWall(u)).length;
   for (const u of mine){
     if (quota <= 0) break;
     if (u.type === 'archer' && free(u) && !onOwnWall(u)){ const c = freeWallCell(T, u); if (c){ setOrder(u, {type:'move', x:c[0], y:c[1]}); quota--; } }
   }
-  // 9) موجة الهجوم
+  // 9) غارة: فرسان يضربون مناجم العدو ومعامله خارج قلعته
+  if (ai.d.raid && !intr.length && G.t > ai.d.first * .7 && G.t - (ai.lastRaid || 0) > ai.d.raid){
+    const raiders = mine.filter(u => free(u) && u.type === 'knight').slice(0, 4);
+    const k = G.keep[T];
+    let tgt = null, td = 1e9;
+    if (raiders.length >= 2 && k) for (const s of G.structs.values()){
+      if (s.team !== E || !SDEF[s.type].prod || inCastle(E, s.x, s.y, 1)) continue;
+      const d = Math.hypot(s.x - k.x, s.y - k.y);
+      if (d < td){ td = d; tgt = s; }
+    }
+    if (tgt){ raiders.forEach(u => setOrder(u, {type:'attack', target:tgt})); ai.lastRaid = G.t; }
+  }
+  // 10) موجة الهجوم
   const atk = mine.filter(u => free(u) && (u.type === 'footman' || u.type === 'knight'));
-  if (!intr.length && (G.demo || G.t > DIFF[G.diff].first) && (atk.length >= ai.wave || (G.t - ai.lastAtk > 170 && atk.length >= 4))){
+  if (!intr.length && (G.demo || G.t > ai.d.first) && (atk.length >= ai.wave || (G.t - ai.lastAtk > ai.d.regroup && atk.length >= 4))){
     // اختيار جهة الهجوم: أمامية أو جانبية أو خلفية للالتفاف على القلعة
     const EC = CASTLE[E], b = EC.box, rnd = Math.random();
-    const side = rnd < .35 ? 'front' : rnd < .57 ? 'left' : rnd < .79 ? 'right' : 'back';
-    const fy = E === 0 ? b.y0 - 3 : b.y1 + 3, by = E === 0 ? b.y1 + 2 : b.y0 - 2;
-    const rp = {front:[EC.cx, fy], left:[b.x0 - 4, EC.cy], right:[b.x1 + 4, EC.cy], back:[EC.cx, by]}[side];
-    const via = () => [Math.max(0, Math.min(COLS - 1, Math.round(rp[0] + (Math.random() - .5) * 4))), Math.max(0, Math.min(ROWS - 1, Math.round(rp[1] + (Math.random() - .5) * 3)))];
+    const side = ai.d.smart ? weakSide(E) : rnd < .35 ? 'front' : rnd < .57 ? 'left' : rnd < .79 ? 'right' : 'back';
+    let rp, smartRally = ai.d.smart;
+    if (smartRally){
+      // نقطة تجمّع خارج مدى رماة السور وأبراجه، ثم هجوم جماعي
+      const fy = E === 0 ? b.y0 - 9 : b.y1 + 9, by = E === 0 ? b.y1 + 8 : b.y0 - 8;
+      rp = {front:[EC.cx, fy], left:[b.x0 - 8, EC.cy], right:[b.x1 + 8, EC.cy], back:[EC.cx, by]}[side];
+    } else {
+      const fy = E === 0 ? b.y0 - 3 : b.y1 + 3, by = E === 0 ? b.y1 + 2 : b.y0 - 2;
+      rp = {front:[EC.cx, fy], left:[b.x0 - 4, EC.cy], right:[b.x1 + 4, EC.cy], back:[EC.cx, by]}[side];
+    }
+    const via = () => {
+      for (let k = 0; k < 8; k++){
+        const x = Math.max(0, Math.min(COLS - 1, Math.round(rp[0] + (Math.random() - .5) * 4))), y = Math.max(0, Math.min(ROWS - 1, Math.round(rp[1] + (Math.random() - .5) * 3)));
+        if (!isMoat(y)) return [x, y];
+      }
+      return [Math.round(rp[0]), Math.round(rp[1])];
+    };
+    const wave = atk.concat(mine.filter(u => u.type === 'archer' && free(u) && !onOwnWall(u)));
+    let goAt = 0;
+    if (smartRally){
+      // ينتظر الأسرع عند نقطة التجمّع حتى يصل الأبطأ (بحد أقصى ٧٥ ثانية)
+      let slow = 0;
+      for (const u of wave) slow = Math.max(slow, Math.hypot(u.cx - rp[0], u.cy - rp[1]) / UDEF[u.type].speed);
+      goAt = G.t + Math.min(75, slow * 1.5 + 4);
+    }
     ai.lastSide = side;
-    atk.forEach(u => setOrder(u, {type:'assault', via:side === 'front' ? null : via()}));
-    mine.forEach(u => { if (u.type === 'archer' && free(u) && !onOwnWall(u)) setOrder(u, {type:'assault', via:side === 'front' ? null : via()}); });
-    ai.wave = Math.min(18, ai.wave + 2); ai.lastAtk = G.t;
+    wave.forEach(u => setOrder(u, {type:'assault', via:side === 'front' && !smartRally ? null : via(), goAt}));
+    ai.wave = Math.min(ai.d.maxWave, ai.wave + ai.d.grow); ai.lastAtk = G.t;
   }
 }
 
@@ -2069,14 +2127,14 @@ function autoConnect(code, role){
 
 /* ---------- بدون إنترنت داخل تطبيق أندرويد: اتصال مباشر عبر نقطة اتصال أحد الهاتفين ----------
    WebRTC على أندرويد لا يستخدم شبكة الواي فاي التي بلا إنترنت، لذلك يتولى التطبيق الاتصال بنفسه */
-const LAN = window.AndroidLan || null;
+const LAN = (!HEADLESS && window.AndroidLan) || null;
 const LAN_ST = {
   waiting:'⏳ بانتظار اتصال الضيف…',
   searching:'🔎 جارٍ البحث عن المضيف…',
   no_wifi:'⚠️ هذا الهاتف غير متصل بأي واي فاي — اتصل بنقطة اتصال المضيف',
   port_busy:'تعذّر بدء الاستضافة — أغلق اللعبة وافتحها من جديد'
 };
-window.__lan = (type, data, session) => {
+if (!HEADLESS) window.__lan = (type, data, session) => {
   if (NET.mode !== 'lan' || session !== NET.lanS) return;   // من محاولة اتصال سابقة
   if (type === 'open') netAttach(o => { try { LAN.send(JSON.stringify(o)); } catch(e){} }, () => { try { LAN.stop(); } catch(e){} });
   else if (type === 'msg'){ let m; try { m = JSON.parse(data); } catch(e){ return; } onNetMsg(m); }
