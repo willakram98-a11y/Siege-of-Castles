@@ -164,7 +164,7 @@ const R3 = (function(){
   const TILT = 48 * Math.PI / 180, K = Math.sin(TILT), HC = Math.cos(TILT), DIST = 90;
   // ارتفاع كل مبنى ووحدة (يُستعمل للّمس ولأشرطة الصحة)
   const SH = {keep:3.3, wall:1.25, gate:1.45, tower:3.3, bridge:.12, lumber:1.2, quarry:1.05, goldmine:1.35, ironmine:1.1, workshop:1.75};
-  const UH = {footman:.98, archer:.9, knight:1.3, trebuchet:2.0}, US = 1.08; // US: حجم الجنود على الخريطة
+  const UH = {footman:.9, archer:.9, knight:1.3, trebuchet:2.0}, US = 1.08; // US: حجم الجنود على الخريطة
   const WALL_TOP = 1.25, MOAT_BED = -.7, WATER_Y = -.24;
   const STONE = '#dfe3e8', STONE2 = '#c9cfd6', STONE_D = '#a3abb5', DARK = '#3a3d44', WOOD = '#c27a43', WOOD_D = '#7f4a24', PLANK = '#e99a5f', SKIN = '#f3c193';
   const PAL = [
@@ -359,26 +359,31 @@ const R3 = (function(){
     part(P.light, .045, .035, d * .6, .008, h * .58);
   }
   const UNIT = {
-    footman(g, P){
-      legs(g, '#5b4636', .085, .3, .1, .06);
-      bx(g, MAIL, .25, .3, .15, 0, .34, 0);
-      bx(g, P.main, .262, .37, .165, 0, .23, 0);          // رداء الفريق فوق الدرع الحلقي
-      bx(g, P.dark, .265, .035, .168, 0, .23, 0);
-      bx(g, LEATH, .272, .04, .175, 0, .4, 0);            // حزام
-      for (const s of [-1, 1]){
-        bx(g, STEEL, .1, .07, .16, s * .15, .55, 0);      // واقيا الكتفين
-        bx(g, MAIL, .07, .24, .08, s * .165, .33, 0);     // الذراعان
-        bx(g, LEATH, .075, .06, .085, s * .165, .29, 0);  // القفازان
+    footman(g, P){ // جندي ممتلئ بخوذة مستديرة كبيرة ورداء بحمّالة بيضاء وسيف طويل
+      for (const sx of [-1, 1]){ bx(g, '#5b4636', .1, .1, .11, sx * .07, .07, 0); bx(g, BOOT, .11, .08, .14, sx * .07, 0, .015); }
+      bx(g, MAIL, .3, .32, .19, 0, .15, 0);                 // درع حلقي يظهر على الجانبين
+      bx(g, P.main, .29, .36, .03, 0, .12, .088);          // رداء الفريق من الأمام والخلف
+      bx(g, P.main, .29, .36, .03, 0, .12, -.088);
+      bx(g, P.dark, .29, .03, .035, 0, .12, .09);
+      bx(g, '#f4f1ea', .055, .44, .215, 0, .11, 0, 0, 0, .62); // حمّالة بيضاء مائلة
+      for (const sx of [-1, 1]){
+        bx(g, STEEL, .13, .07, .15, sx * .19, .41, 0);     // واقيا الكتفين
+        bx(g, '#959ea8', .1, .2, .11, sx * .2, .23, 0);    // كمّان من الحلقات
+        bx(g, LEATH, .1, .06, .11, sx * .2, .18, .01);
       }
-      bx(g, SKIN, .13, .13, .13, 0, .61, .005);
-      bx(g, MAIL, .155, .11, .05, 0, .59, -.055);         // غطاء الرقبة
-      bx(g, STEEL, .155, .07, .155, 0, .7, 0);            // خوذة مخروطية بواقي أنف
-      pyr(g, STEEL, .155, .09, .155, 0, .77, 0);
-      bx(g, STEEL_D, .165, .025, .165, 0, .69, 0);
-      bx(g, STEEL_D, .025, .075, .02, 0, .63, .075);
-      shield(g, P, .235, .17, .04, .36, .25);
-      bx(g, SHAFT, .03, 1.02, .03, -.2, .03, .08);         // رمح
-      cone(g, TIP, .035, .16, -.2, 1.13, .08);
+      bx(g, SKIN, .17, .2, .16, 0, .42, .045);
+      bx(g, '#2f3338', .11, .028, .012, 0, .54, .128);       // العينان في ظل الحافة
+      g.add(new T3.SphereGeometry(.165, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), STEEL, M(0, .585, -.02, 0, 0, 0, 1, .95, 1)); // خوذة مستديرة
+      bx(g, STEEL_D, .34, .03, .34, 0, .57, -.02);        // حافة الخوذة
+      for (const sx of [-1, 1]) bx(g, STEEL, .035, .17, .15, sx * .105, .41, .01); // واقيا الخدّين
+      bx(g, STEEL, .21, .16, .04, 0, .42, -.1);            // واقي القفا
+      shield(g, P, .25, .13, .0, .3, .22);
+      // سيف طويل في اليد اليمنى، نصله مائل للأمام والأسفل
+      const HM = new T3.Matrix4().makeRotationY(-.55).multiply(new T3.Matrix4().makeRotationX(.3)).setPosition(-.2, .2, .04);
+      const sw = (col, w, h, d, z) => g.add(new T3.BoxGeometry(w, h, d), col, HM.clone().multiply(new T3.Matrix4().makeTranslation(0, 0, z)));
+      sw('#c8a14a', .045, .045, .045, -.1); sw('#4a3020', .035, .035, .1, -.04);
+      sw('#c8a14a', .15, .03, .03, .02);
+      sw('#e9edf1', .042, .028, .5, .28); sw('#b9c1c9', .012, .032, .46, .27);
     },
     archer(g, P){
       legs(g, '#4a5536', .08, .3, .095, .055);
