@@ -364,31 +364,45 @@ const R3 = (function(){
     part(P.light, .045, .035, d * .6, .008, h * .58);
   }
   const UNIT = {
-    footman(g, P){ // جندي ممتلئ بخوذة مستديرة كبيرة ورداء بحمّالة بيضاء وسيف طويل
-      for (const sx of [-1, 1]){ bx(g, '#5b4636', .1, .1, .11, sx * .07, .07, 0); bx(g, BOOT, .11, .08, .14, sx * .07, 0, .015); }
-      bx(g, MAIL, .3, .32, .19, 0, .15, 0);                 // درع حلقي يظهر على الجانبين
-      bx(g, P.main, .29, .36, .03, 0, .12, .088);          // رداء الفريق من الأمام والخلف
-      bx(g, P.main, .29, .36, .03, 0, .12, -.088);
-      bx(g, P.dark, .29, .03, .035, 0, .12, .09);
-      bx(g, '#f4f1ea', .055, .44, .215, 0, .11, 0, 0, 0, .62); // حمّالة بيضاء مائلة
-      for (const sx of [-1, 1]){
-        bx(g, STEEL, .13, .07, .15, sx * .19, .41, 0);     // واقيا الكتفين
-        bx(g, '#959ea8', .1, .2, .11, sx * .2, .23, 0);    // كمّان من الحلقات
-        bx(g, LEATH, .1, .06, .11, sx * .2, .18, .01);
+    footman(g, P){ // جندي ممتلئ بخوذة مستديرة ورداء بحواف بيضاء وسيف طويل
+      const S = true, TRIM = '#f4f1ea', CHAIN = '#959ea8', HS = '#b2bbc6', HS_D = '#6f7884';
+      for (const s of [-1, 1]){
+        g.add(new T3.CylinderGeometry(.052, .046, .15, 6), '#5b3a22', M(s * .065, .1, 0), S);
+        sph(g, '#2e1f14', .056, s * .065, .03, .015, 1, .6, 1.3);
       }
-      bx(g, SKIN, .17, .2, .16, 0, .42, .045);
-      bx(g, '#2f3338', .11, .028, .012, 0, .54, .128);       // العينان في ظل الحافة
-      g.add(new T3.SphereGeometry(.165, 12, 4, 0, Math.PI * 2, 0, Math.PI / 2), STEEL, M(0, .585, -.02, 0, 0, 0, 1, .95, 1)); // خوذة مستديرة
-      bx(g, STEEL_D, .34, .03, .34, 0, .57, -.02);        // حافة الخوذة
-      for (const sx of [-1, 1]) bx(g, STEEL, .035, .17, .15, sx * .105, .41, .01); // واقيا الخدّين
-      bx(g, STEEL, .21, .16, .04, 0, .42, -.1);            // واقي القفا
-      shield(g, P, .25, .13, .0, .3, .22);
-      // سيف طويل في اليد اليمنى، نصله مائل للأمام والأسفل
-      const HM = new T3.Matrix4().makeRotationY(-.55).multiply(new T3.Matrix4().makeRotationX(.3)).setPosition(-.2, .2, .04);
-      const sw = (col, w, h, d, z) => g.add(new T3.BoxGeometry(w, h, d), col, HM.clone().multiply(new T3.Matrix4().makeTranslation(0, 0, z)));
-      sw('#c8a14a', .045, .045, .045, -.1); sw('#4a3020', .035, .035, .1, -.04);
-      sw('#c8a14a', .15, .03, .03, .02);
-      sw('#e9edf1', .042, .028, .5, .28); sw('#b9c1c9', .012, .032, .46, .27);
+      g.add(new T3.CylinderGeometry(.15, .158, .1, 10), CHAIN, M(0, .2, 0), S);       // درع حلقي
+      g.add(new T3.CylinderGeometry(.135, .16, .3, 10), P.main, M(0, .32, 0), S);      // رداء الفريق
+      g.add(new T3.TorusGeometry(.16, .016, 3, 10), TRIM, M(0, .175, 0, Math.PI / 2), S);
+      g.add(new T3.TorusGeometry(.136, .014, 3, 10), TRIM, M(0, .465, 0, Math.PI / 2), S);
+      for (const z of [.152, -.152]) bx(g, TRIM, .04, .3, .012, 0, .18, z, z > 0 ? -.07 : .07, 0, .72); // حمّالة بيضاء مائلة
+      for (const s of [-1, 1]){
+        for (let k = 0; k < 2; k++) sph(g, k ? HS_D : HS, .072 - k * .016, s * (.15 + k * .012), .455 - k * .04, 0, 1.1, .62, 1); // كتفيات
+        g.add(new T3.CylinderGeometry(.043, .038, .15, 6), CHAIN, M(s * .175, .35, .02, 0, 0, s * .15), S);
+        sph(g, HS, .038, s * .185, .26, .045);                                      // قفاز
+      }
+      sph(g, SKIN, .1, 0, .57, .045);                                                   // الوجه
+      for (const s of [-1, 1]){
+        bx(g, '#2a1a10', .02, .03, .012, s * .036, .565, .143);
+        bx(g, '#3a2414', .046, .014, .012, s * .038, .595, .14, 0, 0, s * -.3);
+      }
+      sph(g, HS, .14, 0, .615, -.035, 1, .95, 1.05);                                 // خوذة مستديرة
+      g.add(new T3.TorusGeometry(.083, .024, 4, 12), HS_D, M(0, .575, .09, -.12, 0, 0, 1, 1.05, 1), S); // إطار الوجه
+      g.add(new T3.CylinderGeometry(.135, .17, .09, 10, 1, true, Math.PI * .55, Math.PI * .9), HS, M(0, .51, -.04, -.15), S); // واقي القفا المنفرج
+      g.add(new T3.CylinderGeometry(.135, .17, .09, 10, 1, true, Math.PI * .55, Math.PI * .9), HS_D, M(0, .51, -.04, -.15, 0, 0, .97, 1, .97), S);
+      sph(g, HS_D, .028, 0, .738, -.035, 1, .5, 3.4);                                  // عُرف منخفض
+      // ترس بلون الفريق بإطار فولاذي على اليد اليسرى
+      const SM = new T3.Matrix4().makeTranslation(.215, .3, .02).multiply(new T3.Matrix4().makeRotationY(.5)).multiply(new T3.Matrix4().makeRotationZ(Math.PI / 2));
+      const sh = (geo, col, o) => g.add(geo, col, SM.clone().multiply(new T3.Matrix4().makeTranslation(0, o, 0)).multiply(new T3.Matrix4().makeScale(1.35, 1, 1)), S);
+      sh(new T3.CylinderGeometry(.12, .12, .028, 12), P.main, 0);
+      sh(new T3.TorusGeometry(.12, .016, 3, 12).rotateX(Math.PI / 2), HS_D, 0);
+      sh(new T3.BoxGeometry(.03, .032, .16), P.light, .012);
+      sh(new T3.BoxGeometry(.16, .032, .03), P.light, .012);
+      // سيف طويل في اليد اليمنى مائل للأمام والأسفل
+      const HM = new T3.Matrix4().makeRotationY(-.55).multiply(new T3.Matrix4().makeRotationX(.3)).setPosition(-.19, .26, .05);
+      const sw = (geo, col, z) => g.add(geo, col, HM.clone().multiply(new T3.Matrix4().makeTranslation(0, 0, z)), S);
+      sw(new T3.SphereGeometry(.026, 6, 4), '#c8a14a', -.1); sw(new T3.BoxGeometry(.035, .035, .1), '#4a3020', -.045);
+      sw(new T3.BoxGeometry(.16, .03, .035), '#d4ab4f', .02);
+      sw(new T3.BoxGeometry(.045, .022, .5), '#e9edf1', .28); sw(new T3.BoxGeometry(.012, .026, .46), '#b9c1c9', .27);
     },
     archer(g, P){ // رامٍ ممتلئ بقلنسوة مدبّبة وقوس طويل منحنٍ
       const S = true, LTH = '#8a5634', LTH_L = '#c99b66', LTH_D = '#5a3820', BOWC = '#7a4a28';
