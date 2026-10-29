@@ -366,10 +366,6 @@ const R3 = (function(){
   const UNIT = {
     footman(g, P){ // جندي ممتلئ بخوذة مستديرة ورداء بحواف بيضاء وسيف طويل
       const S = true, TRIM = '#f4f1ea', CHAIN = '#959ea8', HS = '#b2bbc6', HS_D = '#6f7884';
-      for (const s of [-1, 1]){
-        g.add(new T3.CylinderGeometry(.052, .046, .15, 6), '#5b3a22', M(s * .065, .1, 0), S);
-        sph(g, '#2e1f14', .056, s * .065, .03, .015, 1, .6, 1.3);
-      }
       g.add(new T3.CylinderGeometry(.15, .158, .1, 10), CHAIN, M(0, .2, 0), S);       // درع حلقي
       g.add(new T3.CylinderGeometry(.135, .16, .3, 10), P.main, M(0, .32, 0), S);      // رداء الفريق
       g.add(new T3.TorusGeometry(.16, .016, 3, 10), TRIM, M(0, .175, 0, Math.PI / 2), S);
@@ -406,10 +402,6 @@ const R3 = (function(){
     },
     archer(g, P){ // رامٍ ممتلئ بقلنسوة مدبّبة وقوس طويل منحنٍ
       const S = true, LTH = '#8a5634', LTH_L = '#c99b66', LTH_D = '#5a3820', BOWC = '#7a4a28';
-      for (const s of [-1, 1]){
-        g.add(new T3.CylinderGeometry(.05, .045, .16, 6), '#4e3422', M(s * .065, .1, 0), S);
-        sph(g, '#2e1f14', .055, s * .065, .03, .015, 1, .6, 1.3);
-      }
       g.add(new T3.CylinderGeometry(.13, .15, .3, 10), LTH, M(0, .31, 0), S);        // سترة جلدية ممتلئة
       for (const [y, r, c] of [[.2, .148, LTH_L], [.3, .142, LTH_D], [.4, .134, LTH_L]]) g.add(new T3.TorusGeometry(r, .016, 3, 10), c, M(0, y, 0, Math.PI / 2), S);
       sph(g, P.main, .1, 0, .45, -.005, 1.65, .55, 1.25);                                 // كتفيّة بلون الفريق
@@ -444,10 +436,6 @@ const R3 = (function(){
     knight(g, P){ // فارس بأسلوب كرتوني على حصان بدرع متدلٍّ من صفائح
       const BARD = '#939eac', BARD_D = '#56606c', KS = '#b4bdc8', KS_D = '#6f7884', HORSE = '#7d4b2b', HORSE_D = '#4a2c19', TRIM = '#f4f1ea', WOOD2 = '#4a3426', S = true;
       // الأرجل
-      for (const [x, z] of [[-.1, .2], [.1, .2], [-.1, -.22], [.1, -.22]]){
-        g.add(new T3.CylinderGeometry(.058, .05, .2, 6), HORSE, M(x, .14, z), S);
-        g.add(new T3.CylinderGeometry(.058, .066, .045, 7), '#24170f', M(x, .022, z), S);
-      }
       // الجسم ودرعه: غطاء علوي وتنّورة صفائح متدلية بحواف داكنة
       cap(g, BARD, .2, .32, 0, .45, -.01, Math.PI / 2, 0, 0, .9, .95, 1);
       g.add(new T3.CylinderGeometry(.2, .214, .17, 12, 1, true), BARD, M(0, .32, -.01, 0, 0, 0, .9, 1, 1.68), S);
@@ -516,11 +504,25 @@ const R3 = (function(){
       for (const x of [-.55, .55]) bx(g, WOOD, .16, .16, 1.5, x, .2, 0);
       for (const z of [-.6, .6]) bx(g, WOOD, 1.26, .14, .14, 0, .21, z);
       bx(g, P.main, 1.27, .06, .15, 0, .35, .6); bx(g, P.main, 1.27, .06, .15, 0, .35, -.6);
-      for (const x of [-.66, .66]) for (const z of [-.5, .5]){ cyl(g, '#4a2d18', .2, .09, x, .2, z, 0, 0, Math.PI / 2, 8); cyl(g, '#8a5a33', .07, .1, x, .2, z, 0, 0, Math.PI / 2, 6); }
       for (const x of [-.36, .36]){ bx(g, WOOD, .12, 1.25, .12, x, .3, -.28, .32); bx(g, WOOD, .12, 1.25, .12, x, .3, .28, -.32); }
       cyl(g, P.dark, .06, .9, 0, 1.36, 0, 0, 0, Math.PI / 2, 6);
       bx(g, P.main, .1, .1, .1, -.42, 1.31, 0); bx(g, P.main, .1, .1, .1, .42, 1.31, 0);
     }
+  };
+  // أجزاء متحركة تُرسم منفصلة: أرجل الجنود والحصان وعجلات المنجنيق (المحور عند الأصل)
+  const LEGS = {
+    footman:{hips:[[-.065, .175, 0, 0], [.065, .175, 0, Math.PI]], amp:.6, stride:.5, geo(g){
+      g.add(new T3.CylinderGeometry(.052, .046, .15, 6), '#5b3a22', M(0, -.075, 0), true);
+      sph(g, '#2e1f14', .056, 0, -.145, .015, 1, .6, 1.3); }},
+    archer:{hips:[[-.065, .18, 0, 0], [.065, .18, 0, Math.PI]], amp:.6, stride:.5, geo(g){
+      g.add(new T3.CylinderGeometry(.05, .045, .16, 6), '#4e3422', M(0, -.08, 0), true);
+      sph(g, '#2e1f14', .055, 0, -.15, .015, 1, .6, 1.3); }},
+    knight:{hips:[[-.1, .26, .2, 0], [.1, .26, .2, Math.PI], [-.1, .26, -.22, Math.PI], [.1, .26, -.22, 0]], amp:.55, stride:.75, geo(g){
+      g.add(new T3.CylinderGeometry(.058, .05, .22, 6), '#7d4b2b', M(0, -.11, 0), true);
+      g.add(new T3.CylinderGeometry(.058, .066, .045, 7), '#24170f', M(0, -.2375, 0), true); }},
+    trebuchet:{hips:[[-.66, .2, -.5], [.66, .2, -.5], [-.66, .2, .5], [.66, .2, .5]], wheel:.2, geo(g){
+      cyl(g, '#4a2d18', .2, .09, 0, 0, 0, 0, 0, Math.PI / 2, 8); cyl(g, '#8a5a33', .07, .1, 0, 0, 0, 0, 0, Math.PI / 2, 6);
+      bx(g, '#8a5a33', .095, .36, .04, 0, -.18, 0); bx(g, '#8a5a33', .095, .04, .36, 0, -.02, -.18 + .18); }}
   };
   // ذراع المنجنيق: المحور عند الأصل، الطرف الطويل نحو −Z والثقل نحو +Z
   function trebArm(P){
@@ -726,6 +728,7 @@ const R3 = (function(){
     // الظل الملوّن يُرسم بعد الأرض والمباني وقبل الوحدات، فتغطيه الوحدة حيث تكون ظاهرة
     const xray = t => new T3.MeshBasicMaterial({color:PAL[t].light, depthFunc:T3.GreaterDepth, depthWrite:false});
     for (const type in UNIT) for (let t = 0; t < 2; t++){ const g = new Geo(); UNIT[type](g, PAL[t]); pools['u' + type + t] = new Pool(g.done(), mat, {cap:64, colored:true, xray:xray(t), order:2}); }
+    for (const type in LEGS) for (let t = 0; t < 2; t++){ const g = new Geo(); LEGS[type].geo(g, PAL[t]); pools['l' + type + t] = new Pool(g.done(), mat, {cap:128, colored:true, xray:xray(t), order:2}); }
     for (let t = 0; t < 2; t++){ pools['arm' + t] = new Pool(trebArm(PAL[t]), mat, {cap:8}); pools['flag' + t] = new Pool(flagGeo(PAL[t]), mat, {cap:16}); }
     { const g = new Geo(); bx(g, '#f4eedd', .035, .035, .5, 0, -.0175, 0); bx(g, '#9aa3ad', .06, .06, .08, 0, -.03, .25); bx(g, '#e8e8e8', .09, .01, .1, 0, 0, -.22); pools.arrow = new Pool(g.done(), mat, {cap:32, cast:false}); }
     { const g = new Geo(); ico(g, '#77716b', .5, 0, 0, 0); pools.stone = new Pool(g.done(), mat, {cap:8}); }
@@ -831,32 +834,45 @@ const R3 = (function(){
         const cx = u.px + u.size / 2, cz = u.py + u.size / 2;
         let r = st.get(u.id);
         if (!r){ r = {x:cx, z:cz, ang:u.team === 0 ? Math.PI : 0, el:0, mv:0, team:u.team, big:u.size === 2}; st.set(u.id, r); }
-        const dx = cx - r.x, dz = cz - r.z;
+        const dx = cx - r.x, dz = cz - r.z, step = Math.hypot(dx, dz);
         let want = null;
         if (Math.abs(dx) + Math.abs(dz) > .002) want = Math.atan2(dx, dz);
         else if (u.tgt && !u.tgt.dead){ const [tx, ty] = center(u.tgt); want = Math.atan2(tx - cx, ty - cz); }
         else if (u.lunge > 0 && (u.lx || u.ly)) want = Math.atan2(u.lx, u.ly);
-        if (want !== null) r.ang += wrap(want - r.ang) * Math.min(1, dt * 12);
+        if (want !== null) r.ang += wrap(want - r.ang) * Math.min(1, dt * 10);
         r.x = cx; r.z = cz;
         let el = 0;
         if (u.size === 1 && onOwnWall(u)) el = WALL_TOP;
         else if (slowAt(u, u.cx, u.cy)) el = -.34;
         else { const b = structAt(u.cx, u.cy); if (b && b.type === 'bridge') el = .08; }
         r.el += (el - r.el) * Math.min(1, dt * 9);
-        const mv = u.moving ? 1 : 0; r.mv += (mv - r.mv) * Math.min(1, dt * 8);
-        const ph = t * 13 + u.id, bob = Math.abs(Math.sin(ph)) * .07 * r.mv;
+        // مشية سلسة: طور الخطوة يتقدّم مع المسافة المقطوعة فعلاً، فلا تنزلق الأقدام ولا يتمايل الجسم
+        const LG = LEGS[u.type], moving = u.moving || step > .001;
+        r.mv += ((moving ? 1 : 0) - r.mv) * Math.min(1, dt * (moving ? 10 : 5));
+        if (step < .5) r.ph = (r.ph || 0) + step / (LG.wheel || LG.stride) * (LG.wheel ? 1 : Math.PI * 2);
+        const ph = r.ph || 0, gait = LG.wheel ? 0 : r.mv;
+        const bob = LG.wheel ? 0 : (1 + Math.cos(2 * ph)) * .5 * (u.type === 'knight' ? .028 : .022) * gait;
+        const lean = LG.wheel ? 0 : (u.type === 'knight' ? Math.sin(2 * ph) * .035 : .07) * gait;
         let lx = 0, lz = 0;
         if (u.lunge > 0 && (u.lx || u.ly)){ const L = Math.hypot(u.lx, u.ly) || 1; lx = u.lx / L * .2; lz = u.ly / L * .2; }
         const us = u.size === 2 ? 1.05 : US;
-        O.position.set(cx + lx, r.el + bob, cz + lz); O.rotation.set(0, r.ang, Math.sin(ph) * .07 * r.mv); O.scale.set(us, us, us); O.updateMatrix();
+        O.position.set(cx + lx, r.el + bob, cz + lz); O.rotation.set(lean, r.ang, 0, 'YXZ'); O.scale.set(us, us, us); O.updateMatrix();
         const fl = u.hitT > 0 ? 2.2 : 1;
         pools['u' + u.type + u.team].put(O.matrix, fl, fl, fl);
+        { // الأرجل أو العجلات
+          const lp = pools['l' + u.type + u.team];
+          if (LG.wheel){ O.rotation.set(0, r.ang, 0, 'YXZ'); O.updateMatrix(); }
+          for (const h of LG.hips){
+            const a = LG.wheel ? ph : Math.sin(ph + h[3]) * LG.amp * gait;
+            mA.makeTranslation(h[0], h[1], h[2]); mB.makeRotationX(LG.wheel ? a : a - lean);
+            mC.multiplyMatrices(O.matrix, mA).multiply(mB); lp.put(mC, fl, fl, fl);
+          }
+        }
         if (u.type === 'trebuchet'){
           const d = UDEF.trebuchet;
           let k;
           if (u.fire > 0) k = 1 - 2 * (1 - u.fire / .6);
           else k = Math.min(1, -1 + 2 * (1 - Math.max(0, u.cd) / d.cd) * 1.6);
-          O.rotation.z = 0; O.updateMatrix();
           mA.makeTranslation(0, 1.36, 0); mB.makeRotationX(-.45 + (1 - k) / 2 * 2.95);
           mC.multiplyMatrices(O.matrix, mA).multiply(mB); pools['arm' + u.team].put(mC);
         }
@@ -1342,6 +1358,7 @@ function advanceMove(u, dt){
   if (slowAt(u, u.nx, u.ny)) spd *= .33;
   const dx = u.nx - u.px, dy = u.ny - u.py, L = Math.hypot(dx, dy), st = spd * dt;
   if (st >= L){
+    u.carry = st > 0 ? dt * (1 - L / st) : 0; // ما تبقّى من وقت هذا الإطار يُكمَل به الخطوة التالية
     u.px = u.nx; u.py = u.ny;
     const ox = u.cx, oy = u.cy;
     u.cx = u.nx; u.cy = u.ny; u.moving = false;
@@ -1484,7 +1501,11 @@ function updateUnit(u, dt){
   if (u.repathT > 0) u.repathT -= dt;
   if (u.fire > 0) u.fire -= dt;
   if (u.lunge > 0) u.lunge -= dt;
-  if (u.moving){ advanceMove(u, dt); return; }
+  if (u.moving){ advanceMove(u, dt); if (u.moving) return; }
+  updateOrder(u, dt);
+  if (u.moving && u.carry > 0){ const c = u.carry; u.carry = 0; advanceMove(u, c); } else u.carry = 0;
+}
+function updateOrder(u, dt){
   if (u.obstacle){
     const ob = u.obstacle;
     if (ob.dead || !inReach(u, ob) || !canHit(u, ob)) u.obstacle = null;
