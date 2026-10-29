@@ -277,14 +277,15 @@ const R3 = (function(){
       for (const x of [-.8, .8]) bx(g, P.main, .34, .8, .04, x, 1.05, 1.17);
     },
     bridge(g, P){
-      for (let i = 0; i < 9; i++) bx(g, i % 2 ? PLANK : '#df8b52', 1.0, .1, .232, 0, -.02, -1.05 + .116 + i * .232);
-      for (const x of [-.47, .47]){
+      for (let i = 0; i < 9; i++) bx(g, i % 2 ? PLANK : '#df8b52', 2.0, .1, .232, 0, -.02, -1.05 + .116 + i * .232);
+      for (const z of [-.6, .6]) bx(g, WOOD_D, 1.9, .1, .1, 0, -.12, z);
+      for (const x of [-.97, .97]){
         bx(g, WOOD_D, .07, .12, 2.1, x, .08, 0);
         for (const z of [-1.0, 0, 1.0]) bx(g, WOOD_D, .1, .32, .1, x, -.02, z);
         for (const z of [-.45, .45]) bx(g, '#6e4020', .12, .8, .12, x, -.8, z);
       }
-      bx(g, P.main, .12, .08, .12, -.47, .3, -1.0); bx(g, P.main, .12, .08, .12, .47, .3, -1.0);
-      bx(g, P.main, .12, .08, .12, -.47, .3, 1.0); bx(g, P.main, .12, .08, .12, .47, .3, 1.0);
+      for (const z of [-.45, .45]) bx(g, '#6e4020', .12, .8, .12, 0, -.8, z);
+      for (const x of [-.97, .97]) for (const z of [-1.0, 1.0]) bx(g, P.main, .12, .08, .12, x, .3, z);
     },
     lumber(g, P){
       bx(g, '#a8875f', 2, .06, 1, 0, 0, 0);
@@ -1002,7 +1003,7 @@ const SDEF = {
   wall:    {name:'جدار', w:1,h:1, hp:360, mat:'stone', icon:'🧱', cost:{stone:15}, time:4, info:'يسدّ الفجوات'},
   gate:    {name:'بوابة', w:1,h:1, hp:420, mat:'wood', icon:'🚪', cost:{wood:20,iron:10,stone:10}, time:6, info:'تعبرها قواتك فقط'},
   tower:   {name:'برج', w:2,h:2, hp:520, mat:'stone', icon:'🗼', cost:{gold:20,wood:30,stone:70}, time:12, range:5, dmg:9, cd:1.1, info:'يرمي فوق السور • ٤'},
-  bridge:  {name:'جسر', w:1,h:2, hp:260, mat:'wood', icon:'🌉', cost:{wood:40}, time:8, info:'عبور سريع للجميع'},
+  bridge:  {name:'جسر', w:2,h:2, hp:380, mat:'wood', icon:'🌉', cost:{wood:60}, time:10, info:'عبور سريع للجميع حتى المنجنيق'},
   lumber:  {name:'معمل أخشاب', w:2,h:1, hp:200, mat:'wood', icon:'🪓', cost:{gold:25}, time:7, prod:{wood:.95}, dep:'wood', info:'خشب • مربعان'},
   quarry:  {name:'معمل أحجار', w:2,h:1, hp:220, mat:'stone', icon:'⛏️', cost:{gold:25,wood:20}, time:8, prod:{stone:.8}, dep:'stone', info:'حجر • مربعان'},
   goldmine:{name:'منجم ذهب', w:2,h:2, hp:320, mat:'stone', icon:'💰', cost:{wood:60,stone:50}, time:12, prod:{gold:1.25}, dep:'gold', info:'ذهب • ٤ مربعات'},
@@ -1119,7 +1120,7 @@ function addStruct(type, team, x, y, w, h, built){
   return s;
 }
 function canPlace(T, type, x, y, w, h){
-  if (type === 'bridge' && (!MOAT_TOPS.includes(y) || w !== 1 || h !== 2)) return false;
+  if (type === 'bridge' && (!MOAT_TOPS.includes(y) || w !== 2 || h !== 2)) return false;
   for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++){
     const X = x+dx, Y = y+dy;
     if (!inb(X, Y)) return false;
@@ -1238,7 +1239,7 @@ function cellCost(u, x, y, breach, avoid){
   let c = 1;
   if (sid){
     const s = G.structs.get(sid);
-    if (s.type === 'bridge'){ if (treb) return Infinity; c = s.built ? 1 : 3.5; }
+    if (s.type === 'bridge'){ if (treb && !s.built) return Infinity; c = s.built ? 1 : 3.5; }
     else if (s.team === u.team){
       if (s.type === 'gate' && s.built) c = 1.3;
       else if (s.type === 'wall' && s.built && u.type === 'archer') c = 2.5;
@@ -1328,7 +1329,7 @@ function tryStep(u){
     const i = idx(X, Y), sid = G.sg[i];
     if (sid){
       const s = G.structs.get(sid);
-      if (s.type === 'bridge'){ if (u.type === 'trebuchet'){ u.path = []; u.repathT = 0; return 'fail'; } }
+      if (s.type === 'bridge'){ if (u.type === 'trebuchet' && !s.built){ u.path = []; u.repathT = 0; return 'fail'; } }
       else if (s.team !== u.team) return {obs:s};
       else if (!ownPassable(u, s)){ u.path = []; u.repathT = 0; return 'fail'; }
     } else if (isMoat(Y) && u.type === 'trebuchet'){ u.path = []; u.repathT = 0; return 'fail'; }
@@ -1869,11 +1870,11 @@ function aiThink(ai){
   // 4) الجسور
   const econ = (cnt.lumber || 0) + (cnt.goldmine || 0) + (cnt.quarry || 0);
   if (econ >= 3 && !bridgeOn(tm.homeMoat) && canAfford(T, SDEF.bridge.cost)){
-    const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.homeMoat, 1, 2));
-    if (bx != null) placeStruct(T, 'bridge', bx, tm.homeMoat, 1, 2);
+    const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.homeMoat, 2, 2));
+    if (bx != null) placeStruct(T, 'bridge', bx, tm.homeMoat, 2, 2);
   } else if (army >= 7 && !bridgeOn(tm.farMoat) && canAfford(T, SDEF.bridge.cost)){
-    const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.farMoat, 1, 2));
-    if (bx != null) placeStruct(T, 'bridge', bx, tm.farMoat, 1, 2);
+    const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.farMoat, 2, 2));
+    if (bx != null) placeStruct(T, 'bridge', bx, tm.farMoat, 2, 2);
   }
   // 5) ترتيب البناء
   const pending = ss.filter(s => !s.built && s.type !== 'wall' && s.type !== 'gate' && s.type !== 'bridge').length;
@@ -2526,9 +2527,10 @@ function cellOkFor(u, x, y, sel){
   const sid = G.sg[i];
   if (sid){
     const s = G.structs.get(sid);
-    if (s.type === 'bridge') return true;
+    if (s.type === 'bridge') return u.type !== 'trebuchet' || s.built;
     return s.team === u.team && s.type === 'wall' && s.built && u.type === 'archer';
   }
+  if (u.type === 'trebuchet' && isMoat(y)) return false;
   return true;
 }
 function moveGroup(units, tx, ty){
@@ -2738,7 +2740,7 @@ function startPlace(type){
 }
 function setGhost(cx, cy){
   const p = placing;
-  if (p.type === 'bridge'){ p.x = cx; p.y = Math.abs(cy - 28.5) < Math.abs(cy - 40.5) ? 28 : 40; }
+  if (p.type === 'bridge'){ p.x = Math.max(0, Math.min(COLS - 2, cx)); p.y = Math.abs(cy - 28.5) < Math.abs(cy - 40.5) ? 28 : 40; }
   else { p.x = Math.max(0, Math.min(COLS - p.w, cx - Math.floor((p.w - 1) / 2))); p.y = Math.max(0, Math.min(ROWS - p.h, cy - Math.floor((p.h - 1) / 2))); }
   const ok = canPlace(ME, p.type, p.x, p.y, p.w, p.h);
   $('placeTxt').textContent = ok ? (canAfford(ME, SDEF[p.type].cost) ? '✔ موقع مناسب — اضغط «ابنِ»' : 'موارد غير كافية') : '✖ لا يمكن البناء هنا';
@@ -3215,7 +3217,7 @@ const HOWTO = `<details><summary>📜 طريقة اللعب</summary><ul>
 <li>تفقّد فجوات سورك في كل الجهات وسدّها، وضع رماتك على الأسوار الجانبية والخلفية أيضاً.</li>
 <li>اسحب بإصبع للتنقل، وقرّب أو بعّد بإصبعين (أو ＋ －). زر 🏰 يعيدك إلى قلعتك، وزر 📍 يأخذك إلى موقع الهجوم.</li>
 <li>الأرض المحايدة يبني فيها الطرفان، ومواقعها الغنية تنتج ×2.2. احمِ ما تبنيه هناك!</li>
-<li>المنجنيق لا يعبر الخنادق: ابنِ «معمل المنجنيق» في الأرض المحايدة ليصل مداه إلى السور الأمامي لقلعة العدو.</li>
+<li>المنجنيق لا يعبر الخندق إلا فوق جسر مكتمل (عرضه مربعان): ابنِ جسراً أو «معمل المنجنيق» في الأرض المحايدة ليصل مداه إلى السور الأمامي لقلعة العدو.</li>
 <li>كل بناء أو إصلاح أو هدم ينفذه جندي يقف بجانبه؛ يُرسل أقرب جندي متاح تلقائياً.</li>
 <li>🪓 «هدم» في تبويب البناء يزيل منجماً أو معملاً لك ويعيد نصف تكلفته.</li>
 <li>المس جنودك لتحديدهم، ثم المس مكاناً للتحرك أو عدواً للهجوم.</li>
