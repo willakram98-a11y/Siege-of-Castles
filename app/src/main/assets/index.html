@@ -164,7 +164,7 @@ const R3 = (function(){
   const TILT = 48 * Math.PI / 180, K = Math.sin(TILT), HC = Math.cos(TILT), DIST = 90;
   // ارتفاع كل مبنى ووحدة (يُستعمل للّمس ولأشرطة الصحة)
   const SH = {keep:3.3, wall:1.25, gate:1.45, tower:3.3, bridge:.12, lumber:1.2, quarry:1.05, goldmine:1.35, ironmine:1.1, workshop:1.75};
-  const UH = {footman:.9, archer:.9, knight:1.28, trebuchet:2.0}, US = 1.08; // US: حجم الجنود على الخريطة
+  const UH = {footman:.9, archer:.9, knight:1.32, trebuchet:2.0}, US = 1.08; // US: حجم الجنود على الخريطة
   const WALL_TOP = 1.25, MOAT_BED = -.7, WATER_Y = -.24;
   const STONE = '#dfe3e8', STONE2 = '#c9cfd6', STONE_D = '#a3abb5', DARK = '#3a3d44', WOOD = '#c27a43', WOOD_D = '#7f4a24', PLANK = '#e99a5f', SKIN = '#f3c193';
   const PAL = [
@@ -176,20 +176,23 @@ const R3 = (function(){
   const colorCache = new Map();
 
   /* ---------- بناء المجسمات من قطع بسيطة، كلها في هندسة واحدة بألوان على الرؤوس ---------- */
-  function Geo(){ this.p = []; this.c = []; }
-  Geo.prototype.add = function(g, col, m){
+  function Geo(){ this.p = []; this.n = []; this.c = []; }
+  // smooth=true يُبقي إضاءة ناعمة للقطع المستديرة، وإلا تأتي مسطّحة كأسلوب المكعبات
+  Geo.prototype.add = function(g, col, m, smooth){
+    if (!smooth || !g.attributes.normal) g.deleteAttribute && g.deleteAttribute('normal');
     if (g.index) g = g.toNonIndexed();
+    if (!g.attributes.normal) g.computeVertexNormals();
     if (m) g.applyMatrix4(m);
-    const P = g.attributes.position.array, c = col instanceof T3.Color ? col : new T3.Color(col);
-    for (let i = 0; i < P.length; i++) this.p.push(P[i]);
+    const P = g.attributes.position.array, N = g.attributes.normal.array, c = col instanceof T3.Color ? col : new T3.Color(col);
+    for (let i = 0; i < P.length; i++){ this.p.push(P[i]); this.n.push(N[i]); }
     for (let i = 0; i < P.length / 3; i++) this.c.push(c.r, c.g, c.b);
     return this;
   };
   Geo.prototype.done = function(){
     const g = new T3.BufferGeometry();
     g.setAttribute('position', new T3.Float32BufferAttribute(this.p, 3));
+    g.setAttribute('normal', new T3.Float32BufferAttribute(this.n, 3));
     g.setAttribute('color', new T3.Float32BufferAttribute(this.c, 3));
-    g.computeVertexNormals(); // الرؤوس غير مشتركة، فتأتي الإضاءة مسطّحة كأسلوب المكعبات
     g.computeBoundingSphere();
     return g;
   };
@@ -213,6 +216,8 @@ const R3 = (function(){
   }
   function cyl(g, col, r, len, x, y, z, rx, ry, rz, seg){ g.add(new T3.CylinderGeometry(r, r, len, seg || 7), col, M(x, y, z, rx, ry, rz)); }
   function ico(g, col, r, x, y, z, sx, sy, sz, ry){ g.add(new T3.IcosahedronGeometry(r, 0), col, M(x, y, z, 0, ry || 0, 0, sx, sy, sz)); }
+  function sph(g, col, r, x, y, z, sx, sy, sz, rx){ g.add(new T3.SphereGeometry(r, r > .06 ? 9 : 6, r > .06 ? 5 : 4), col, M(x, y, z, rx || 0, 0, 0, sx, sy, sz), true); }
+  function cap(g, col, r, len, x, y, z, rx, ry, rz, sx, sy, sz){ g.add(new T3.CapsuleGeometry(r, len, r > .08 ? 2 : 1, r > .08 ? 9 : 6), col, M(x, y, z, rx, ry, rz, sx, sy, sz), true); }
   function merlons(g, col, n, len, along, y, off, size){
     for (let i = 0; i < n; i++){
       const t = n === 1 ? 0 : -len / 2 + size / 2 + i * (len - size) / (n - 1);
@@ -373,7 +378,7 @@ const R3 = (function(){
       }
       bx(g, SKIN, .17, .2, .16, 0, .42, .045);
       bx(g, '#2f3338', .11, .028, .012, 0, .54, .128);       // العينان في ظل الحافة
-      g.add(new T3.SphereGeometry(.165, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), STEEL, M(0, .585, -.02, 0, 0, 0, 1, .95, 1)); // خوذة مستديرة
+      g.add(new T3.SphereGeometry(.165, 12, 4, 0, Math.PI * 2, 0, Math.PI / 2), STEEL, M(0, .585, -.02, 0, 0, 0, 1, .95, 1)); // خوذة مستديرة
       bx(g, STEEL_D, .34, .03, .34, 0, .57, -.02);        // حافة الخوذة
       for (const sx of [-1, 1]) bx(g, STEEL, .035, .17, .15, sx * .105, .41, .01); // واقيا الخدّين
       bx(g, STEEL, .21, .16, .04, 0, .42, -.1);            // واقي القفا
@@ -410,55 +415,76 @@ const R3 = (function(){
       bx(g, '#6b3f1d', .028, L, .032, x, y0 - L / 2 * c - L / 2, z - L / 2 * sn, a);
       bx(g, '#eeeeee', .01, .12 + 2 * L * c, .01, x, y0 - L * c, z - L * sn);
     },
-    knight(g, P){ // فارس بخوذة كاملة على حصان مدرّع
-      const BARD = '#a3acb7', BARD_D = '#6c7580', HORSE = '#7a4a2c', HORSE_D = '#4e2f1b', MANE = '#2b1d13', TRIM = '#f4f1ea';
-      // الحصان: أرجل بنية وجسم مغطّى بصفائح فولاذية
-      for (const [x, z] of [[-.1, .24], [.1, .24], [-.1, -.25], [.1, -.25]]){ bx(g, HORSE, .085, .3, .095, x, .05, z); bx(g, '#231811', .095, .06, .105, x, 0, z); }
-      bx(g, HORSE, .26, .2, .64, 0, .3, 0);
-      bx(g, BARD, .32, .24, .6, 0, .3, -.01);                 // درع الجسم
-      bx(g, BARD, .28, .05, .56, 0, .54, -.01);
-      for (const z of [-.2, .04, .22]) bx(g, BARD_D, .325, .25, .02, 0, .295, z); // خطوط الصفائح
-      bx(g, BARD_D, .325, .03, .605, 0, .3, -.01);
-      bx(g, MANE, .07, .3, .07, 0, .2, -.36, .4);               // الذيل
-      bx(g, BARD, .19, .36, .2, 0, .5, .3, .35);               // درع العنق مقسّم
-      for (const t of [-.08, .02, .12]) bx(g, BARD_D, .195, .02, .205, 0, .68 + t * .94 - .01, .3 + t * .34, .35);
-      bx(g, MANE, .05, .3, .05, 0, .55, .21, .35);
-      bx(g, BARD, .145, .13, .28, 0, .735, .48, .95);           // درع الرأس مائل للأسفل
-      bx(g, HORSE, .125, .1, .1, 0, .67, .58, .95);             // الأنف
-      bx(g, HORSE_D, .13, .025, .05, 0, .66, .62, .95);
-      for (const s of [-1, 1]){
-        bx(g, '#f6f2e8', .02, .06, .065, s * .073, .84, .45, .95); // العينان
-        bx(g, '#1d1510', .022, .034, .034, s * .074, .845, .465, .95);
-        bx(g, HORSE, .035, .075, .035, s * .045, .9, .39, -.2);    // الأذنان
+    knight(g, P){ // فارس بأسلوب كرتوني على حصان بدرع متدلٍّ من صفائح
+      const BARD = '#939eac', BARD_D = '#56606c', KS = '#b4bdc8', KS_D = '#6f7884', HORSE = '#7d4b2b', HORSE_D = '#4a2c19', TRIM = '#f4f1ea', WOOD2 = '#4a3426', S = true;
+      // الأرجل
+      for (const [x, z] of [[-.1, .2], [.1, .2], [-.1, -.22], [.1, -.22]]){
+        g.add(new T3.CylinderGeometry(.058, .05, .2, 6), HORSE, M(x, .14, z), S);
+        g.add(new T3.CylinderGeometry(.058, .066, .045, 7), '#24170f', M(x, .022, z), S);
       }
-      bx(g, '#5a3418', .27, .05, .24, 0, .58, -.04);            // السرج
+      // الجسم ودرعه: غطاء علوي وتنّورة صفائح متدلية بحواف داكنة
+      cap(g, BARD, .2, .32, 0, .45, -.01, Math.PI / 2, 0, 0, .9, .95, 1);
+      g.add(new T3.CylinderGeometry(.2, .214, .17, 12, 1, true), BARD, M(0, .32, -.01, 0, 0, 0, .9, 1, 1.68), S);
+      g.add(new T3.TorusGeometry(.214, .017, 3, 12), BARD_D, M(0, .232, -.01, Math.PI / 2, 0, 0, .9, 1.68, 1), S);
+      g.add(new T3.TorusGeometry(.204, .012, 3, 12), BARD_D, M(0, .395, -.01, Math.PI / 2, 0, 0, .91, 1.7, 1), S);
+      for (const s of [-1, 1]) for (const z of [-.24, -.08, .08, .24]){
+        const xr = .21 * .9 * Math.sqrt(Math.max(0, 1 - (z / (.21 * 1.68)) ** 2));
+        bx(g, BARD_D, .016, .16, .022, s * xr, .235, z - .01, 0, s * Math.asin(z / .36), 0);
+      }
+      // الذيل
+      cap(g, HORSE_D, .05, .14, 0, .42, -.42, .45);
+      cap(g, HORSE_D, .044, .18, 0, .26, -.47, .12);
+      // العنق بصفائح متراكبة
+      cap(g, BARD, .108, .2, 0, .62, .3, .45);
+      for (const t of [-.06, .06]) g.add(new T3.TorusGeometry(.11, .011, 3, 10), BARD_D, M(0, .62 + t * .9, .3 + t * .43, .45 - Math.PI / 2), S);
+      cap(g, HORSE_D, .035, .22, 0, .72, .2, .45);
+      // الرأس: بنّي وعليه واقٍ فولاذي
+      sph(g, HORSE, .13, 0, .79, .5, .95, .9, 1.45, .6);
+      sph(g, BARD, .136, 0, .815, .495, .9, .8, 1.36, .6);
+      bx(g, BARD_D, .03, .03, .26, 0, .87, .48, .6);
+      sph(g, HORSE, .09, 0, .69, .64, 1, .85, 1.1);
+      sph(g, HORSE_D, .07, 0, .665, .69, 1.05, .7, .8);
+      for (const s of [-1, 1]){
+        bx(g, '#1a100a', .025, .02, .02, s * .035, .66, .735);
+        sph(g, '#fbf8f1', .06, s * .122, .82, .52, .5, 1, 1.05);                         // عينان كبيرتان
+        sph(g, '#7a4520', .036, s * .146, .815, .54, .4, 1, 1);
+        bx(g, '#120c08', .012, .032, .03, s * .153, .8, .548);
+        g.add(new T3.SphereGeometry(.064, 6, 2, 0, Math.PI * 2, 0, Math.PI * .3), BARD_D, M(s * .123, .835, .52, .45, 0, 0, .55, 1, 1.08), S); // جفن نصف مغمض
+        g.add(new T3.ConeGeometry(.036, .11, 6), HORSE, M(s * .065, .95, .37, -.35), S);
+      }
+      // السرج
+      sph(g, '#5a3418', .14, 0, .62, -.02, 1.1, .38, 1.2);
       // الفارس
       for (const s of [-1, 1]){
-        bx(g, STEEL, .085, .09, .2, s * .16, .58, .02);
-        bx(g, STEEL, .075, .22, .085, s * .17, .38, .1);
-        bx(g, '#959ea8', .085, .2, .095, s * .16, .66, -.01);  // كمّان من الحلقات
-        bx(g, STEEL, .11, .07, .14, s * .15, .84, -.03);        // واقيا الكتفين
+        g.add(new T3.CylinderGeometry(.05, .05, .2, 6), '#959ea8', M(s * .175, .62, .06, Math.PI / 2), S);
+        g.add(new T3.CylinderGeometry(.045, .04, .2, 6), KS, M(s * .2, .5, .13), S);
+                g.add(new T3.CylinderGeometry(.044, .04, .17, 6), '#959ea8', M(s * .2, .75, .02), S);
+        sph(g, KS, .036, s * .2, .67, .05);
+        for (let k = 0; k < 2; k++) sph(g, k ? KS_D : KS, .075 - k * .017, s * (.18 + k * .012), .9 - k * .04, -.01, 1.1, .6, 1); // كتفيات متراكبة
       }
-      bx(g, MAIL, .24, .28, .16, 0, .62, -.03);
-      bx(g, P.main, .25, .3, .18, 0, .59, -.03);               // رداء الفريق بحافة بيضاء
-      bx(g, TRIM, .255, .03, .185, 0, .59, -.03);
-      bx(g, TRIM, .03, .26, .01, 0, .62, .062);
-      bx(g, TRIM, .255, .03, .185, 0, .85, -.03);
-      cyl(g, STEEL, .095, .17, 0, .985, -.03, 0, 0, 0, 10);       // خوذة كاملة مستديرة
-      g.add(new T3.SphereGeometry(.095, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2), STEEL, M(0, 1.07, -.03));
-      bx(g, '#2b2f35', .15, .022, .02, 0, 1.0, .055);           // شق النظر
-      bx(g, STEEL_D, .025, .1, .02, 0, .92, .06);
-      bx(g, STEEL_D, .2, .02, .2, 0, .9, -.03);
-      // ترس مستدير على اليد اليسرى
-      g.add(new T3.CylinderGeometry(.15, .15, .025, 12), STEEL_D, M(.215, .66, .01, 0, -.4, Math.PI / 2));
-      g.add(new T3.CylinderGeometry(.13, .13, .03, 12), '#4a3426', M(.222, .66, .013, 0, -.4, Math.PI / 2));
-      g.add(new T3.CylinderGeometry(.035, .035, .04, 8), STEEL, M(.232, .66, .017, 0, -.4, Math.PI / 2));
-      // سيف مرفوع في اليد اليمنى
-      const HM = new T3.Matrix4().makeRotationY(-.3).multiply(new T3.Matrix4().makeRotationX(-1.15)).setPosition(-.2, .72, .08);
+      g.add(new T3.CylinderGeometry(.17, .18, .08, 10), MAIL, M(0, .64, -.02), S);
+      g.add(new T3.CylinderGeometry(.14, .168, .27, 12), P.main, M(0, .77, -.02), S);    // رداء الفريق بحواف بيضاء
+      g.add(new T3.TorusGeometry(.168, .016, 3, 10), TRIM, M(0, .64, -.02, Math.PI / 2), S);
+      g.add(new T3.TorusGeometry(.142, .014, 3, 10), TRIM, M(0, .9, -.02, Math.PI / 2), S);
+      bx(g, TRIM, .03, .26, .02, 0, .64, .145, -.1);
+      // خوذة كاملة
+      g.add(new T3.CylinderGeometry(.125, .135, .19, 12), KS, M(0, 1.005, -.01), S);
+      sph(g, KS, .125, 0, 1.1, -.01, 1, .45, 1);
+      g.add(new T3.TorusGeometry(.136, .013, 3, 10), KS_D, M(0, .915, -.01, Math.PI / 2), S);
+      bx(g, '#24282d', .18, .026, .05, 0, 1.02, .1);
+      bx(g, KS_D, .032, .17, .04, 0, .918, .113);
+      for (const s of [-1, 1]) bx(g, '#2a2e33', .045, .045, .02, s * .055, .945, .126);
+      // ترس مستدير
+      const sh = (geo, col, o) => g.add(geo, col, new T3.Matrix4().makeRotationY(.55).multiply(new T3.Matrix4().makeRotationZ(Math.PI / 2)).setPosition(.25 + o, .73, .04 + o * .6), S);
+      sh(new T3.CylinderGeometry(.155, .155, .03, 12), WOOD2, 0);
+      sh(new T3.TorusGeometry(.155, .02, 3, 10).rotateX(Math.PI / 2), KS_D, 0);
+      sh(new T3.SphereGeometry(.04, 6, 4), KS, .02);
+      // سيف مرفوع
+      const HM = new T3.Matrix4().makeRotationY(-.3).multiply(new T3.Matrix4().makeRotationX(-1.15)).setPosition(-.2, .68, .08);
       const sw = (col, w, h, d, z) => g.add(new T3.BoxGeometry(w, h, d), col, HM.clone().multiply(new T3.Matrix4().makeTranslation(0, 0, z)));
-      sw('#c8a14a', .045, .045, .045, -.1); sw('#4a3020', .035, .035, .1, -.04);
-      sw('#c8a14a', .15, .03, .03, .02);
-      sw('#e9edf1', .042, .028, .52, .29); sw('#b9c1c9', .012, .032, .48, .28);
+      sw('#c8a14a', .05, .05, .05, -.1); sw('#4a3020', .04, .04, .1, -.04);
+      sw('#d4ab4f', .17, .035, .035, .02);
+      sw('#e9edf1', .05, .03, .52, .29); sw('#b9c1c9', .014, .034, .48, .28);
     },
     trebuchet(g, P){
       for (const x of [-.55, .55]) bx(g, WOOD, .16, .16, 1.5, x, .2, 0);
