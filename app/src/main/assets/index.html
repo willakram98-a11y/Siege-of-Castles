@@ -602,7 +602,7 @@ const R3 = (function(){
     const T = y < ROWS / 2 ? 1 : 0, dep = DEP[idx(x, y)];
     if (isRing(T, x, y)) return '#cdbfa6';
     if (inCastle(T, x, y, 0)) return ch ? '#ead9bb' : '#e2cfae';
-    const road = inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 + SH && y < 47 + SH) : (y > 22 && y <= 27)));
+    const road = inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 + YSH && y < 47 + YSH) : (y > 22 && y <= 27)));
     if (road) return n < .5 ? (ch ? '#f4cf9e' : '#efc791') : (ch ? '#f1ca95' : '#ebc289');
     if (dep === 'wood') return ch ? '#78b548' : '#71ad43';
     if (dep === 'stone') return ch ? '#c9c9b4' : '#c1c1ab';
@@ -947,7 +947,7 @@ const HEADLESS = typeof document === 'undefined';
 /* ================== الخريطة ==================
    الصفوف (من الأعلى): أرض العدو 0-27 وفيها قلعته | خندق 28-30 | الأرض المحايدة 31-88 | خندق 89-91 | أرضك 92-119 وفيها قلعتك
    كل قلعة سور كامل يحيط بالحصن من الجهات الأربع، بأبراج في الزوايا وبوابات في كل جهة، وحولها أرض مكشوفة */
-const NEUT = 58, SH = NEUT - 8;   // صفوف الأرض المحايدة، وSH: إزاحة أرضك عن التصميم الأصلي (٨ صفوف محايدة)
+const NEUT = 58, YSH = NEUT - 8;   // صفوف الأرض المحايدة، وYSH: إزاحة أرضك عن التصميم الأصلي (٨ صفوف محايدة)
 const COLS = 50, ROWS = 62 + NEUT;   // خلف كل قلعة 13 صفاً من الأرض المفتوحة
 const N0 = 31, N1 = 30 + NEUT;       // أول وآخر صف محايد
 const MOAT_TOPS = [28, N1 + 1], MOAT_W = 3;   // لا يُعبر الخندق إلا فوق جسر مكتمل
@@ -959,7 +959,7 @@ const idx = (x, y) => y * COLS + x;
 const CASTLE = (function(){
   const mp = ([x, y]) => [COLS - 1 - x, ROWS - 1 - y];
   const mr = ([x, y], w, h) => [COLS - x - w, ROWS - y - h];
-  const Y = y => y + SH;
+  const Y = y => y + YSH;
   const base = {box:{x0:19, y0:Y(48), x1:30, y1:Y(56)},
     gates:[[24,Y(48)],[25,Y(48)],[24,Y(56)],[25,Y(56)],[19,Y(52)],[30,Y(52)]],
     towers:[[18,Y(47)],[30,Y(47)],[18,Y(56)],[30,Y(56)]],
@@ -982,10 +982,10 @@ const isRing = (T, x, y) => CASTLE[T].ringSet.has(x + ',' + y);
 const inCastle = (T, x, y, pad) => { const b = CASTLE[T].box; pad = pad || 0; return x >= b.x0 - pad && x <= b.x1 + pad && y >= b.y0 - pad && y <= b.y1 + pad; };
 const inb = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
 const TEAM = [
-  {color:'#3b82f6', dark:'#1e3a8a', light:'#bfdbfe', rows:[42+SH,ROWS-1], front:42+SH, nFront:32, homeMoat:N1+1, farMoat:28},
-  {color:'#e5484d', dark:'#7f1d1d', light:'#fecaca', rows:[0,27],  front:26, nFront:36+SH, homeMoat:28, farMoat:N1+1}
+  {color:'#3b82f6', dark:'#1e3a8a', light:'#bfdbfe', rows:[42+YSH,ROWS-1], front:42+YSH, nFront:32, homeMoat:N1+1, farMoat:28},
+  {color:'#e5484d', dark:'#7f1d1d', light:'#fecaca', rows:[0,27],  front:26, nFront:36+YSH, homeMoat:28, farMoat:N1+1}
 ];
-const depthOwn = (T, cy) => T === 0 ? cy - 42 - SH : 28 - cy;
+const depthOwn = (T, cy) => T === 0 ? cy - 42 - YSH : 28 - cy;
 const depthN = (T, cy) => T === 0 ? N1 + 1 - cy : cy - N0;
 const RES = ['gold','iron','wood','stone'];
 const RICON = {gold:'🪙', iron:'🔩', wood:'🪵', stone:'🪨'};
@@ -1029,7 +1029,7 @@ const DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 const DEP = new Array(COLS*ROWS).fill(null);
 (function(){
   // الإحداثيات مكتوبة بالتصميم الأصلي (٧٠ صفاً) وتُزاح إلى نصف الخريطة السفلي، ثم تُعكس للعدو
-  const rect = (k, x0, y0, x1, y1, raw) => { const o = raw ? 0 : SH;
+  const rect = (k, x0, y0, x1, y1, raw) => { const o = raw ? 0 : YSH;
     for (let y = y0 + o; y <= y1 + o; y++) for (let x = x0; x <= x1; x++){ DEP[idx(x,y)] = k; DEP[idx(COLS-1-x, ROWS-1-y)] = k; } };
   rect('wood', 0,46, 2,49); rect('wood', 46,43, 49,45); rect('wood', 10,56, 12,58);
   rect('stone', 40,52, 42,53); rect('stone', 5,43, 7,44);
@@ -2059,7 +2059,7 @@ function aiThink(ai){
     if (smartRally){
       // نقطة تجمّع خارج مدى رماة السور وأبراجه، ثم هجوم جماعي
       // التجمّع الأمامي في وسط الأرض المحايدة حتى لا يسدّ الجنود مدخل الجسر
-      const fy = E === 0 ? 35 + SH : 34, by = E === 0 ? b.y1 + 8 : b.y0 - 8;
+      const fy = E === 0 ? 35 + YSH : 34, by = E === 0 ? b.y1 + 8 : b.y0 - 8;
       rp = {front:[EC.cx, fy], left:[b.x0 - 8, EC.cy], right:[b.x1 + 8, EC.cy], back:[EC.cx, by]}[side];
     } else {
       const fy = E === 0 ? b.y0 - 3 : b.y1 + 3, by = E === 0 ? b.y1 + 2 : b.y0 - 2;
@@ -2140,7 +2140,7 @@ function buildTerrain(){
     const X = x * C, Y = y * C, ch = (x + y) % 2;
     let col, grass = false;
     const T = y < ROWS / 2 ? 1 : 0, inside = inCastle(T, x, y, 0) && !isRing(T, x, y);
-    const road = !inCastle(T, x, y, 0) && (inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 + SH && y < 47 + SH) : (y > 22 && y <= 27))));
+    const road = !inCastle(T, x, y, 0) && (inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 + YSH && y < 47 + YSH) : (y > 22 && y <= 27))));
     if (isMoat(y)) col = '#245a85';
     else if (isRing(T, x, y)) col = '#6b5b45';
     else if (inside) col = ch ? '#675e55' : '#5f574e';
@@ -2899,7 +2899,7 @@ function startPlace(type){
 }
 function setGhost(cx, cy){
   const p = placing;
-  if (p.type === 'bridge'){ p.x = Math.max(0, Math.min(COLS - 2, cx)); p.y = Math.abs(cy - 29) < Math.abs(cy - 40) ? 28 : 39; }
+  if (p.type === 'bridge'){ p.x = Math.max(0, Math.min(COLS - 2, cx)); p.y = Math.abs(cy - MOAT_TOPS[0] - 1) < Math.abs(cy - MOAT_TOPS[1] - 1) ? MOAT_TOPS[0] : MOAT_TOPS[1]; }
   else { p.x = Math.max(0, Math.min(COLS - p.w, cx - Math.floor((p.w - 1) / 2))); p.y = Math.max(0, Math.min(ROWS - p.h, cy - Math.floor((p.h - 1) / 2))); }
   const ok = canPlace(ME, p.type, p.x, p.y, p.w, p.h);
   $('placeTxt').textContent = ok ? (canAfford(ME, SDEF[p.type].cost) ? '✔ موقع مناسب — اضغط «ابنِ»' : 'موارد غير كافية') : '✖ لا يمكن البناء هنا';
