@@ -161,10 +161,10 @@ ${Oe}`;q.test(K)&&(j(H),H=setTimeout(V,Ps))},pe=()=>{k.iceGatheringState==="comp
    المحاور: X = عمود الخريطة، Z = صفها، Y = الارتفاع. كل مجسم مبنيّ ووجهه الأمامي نحو +Z. */
 const R3 = (function(){
   'use strict';
-  const TILT = 48 * Math.PI / 180, K = Math.sin(TILT), HC = Math.cos(TILT), DIST = 90;
+  const TILT = 40 * Math.PI / 180, K = Math.sin(TILT), HC = Math.cos(TILT), DIST = 90;
   // ارتفاع كل مبنى ووحدة (يُستعمل للّمس ولأشرطة الصحة)
-  const SH = {keep:3.3, wall:1.25, gate:1.45, tower:3.3, bridge:.12, lumber:1.2, quarry:1.05, goldmine:1.35, ironmine:1.1, workshop:1.75};
-  const UH = {footman:.9, archer:.9, knight:1.32, trebuchet:2.0}, US = 1.08; // US: حجم الجنود على الخريطة
+  const SH = {keep:4.3, wall:1.5, gate:1.85, tower:2.6, bridge:.12, lumber:1.2, quarry:1.05, goldmine:1.35, ironmine:1.1, workshop:1.75};
+  const UH = {footman:.66, archer:.66, knight:.97, trebuchet:2.0}, US = .8; // US: حجم الجنود على الخريطة
   const WALL_TOP = 1.25, MOAT_BED = -.7, WATER_Y = -.24;
   const STONE = '#dfe3e8', STONE2 = '#c9cfd6', STONE_D = '#a3abb5', DARK = '#3a3d44', WOOD = '#c27a43', WOOD_D = '#7f4a24', PLANK = '#e99a5f', SKIN = '#f3c193';
   const PAL = [
@@ -227,54 +227,62 @@ const R3 = (function(){
 
   /* ---------- المباني (القاعدة في الوسط، الواجهة الخارجية للأسوار نحو −Z) ---------- */
   const BUILD = {
+    // السور: جسم حجري بممشى علوي واسع، وشرفات على الحافتين (الخارجية أعلى)، وفتحات رمي وشريط بلون الفريق
     wall(g, P){
-      bx(g, STONE_D, 1.02, .14, 1.02, 0, 0, 0);
-      bx(g, STONE, 1, WALL_TOP - .14, 1, 0, .14, 0);
-      bx(g, STONE2, 1, .06, 1, 0, WALL_TOP - .06, 0);
-      bx(g, STONE, .3, .3, .22, -.26, WALL_TOP, -.39); bx(g, STONE, .3, .3, .22, .26, WALL_TOP, -.39);
-      bx(g, STONE2, 1, .12, .12, 0, WALL_TOP, .44);
-      bx(g, DARK, .1, .3, .04, 0, .5, -.51);
-      bx(g, P.main, 1.0, .1, .03, 0, .16, -.515); bx(g, P.main, 1.0, .1, .03, 0, .16, .515);
+      bx(g, STONE_D, 1.04, .16, 1.04, 0, 0, 0);
+      bx(g, STONE, 1, WALL_TOP - .16, .96, 0, .16, 0);
+      bx(g, STONE2, 1, .05, .96, 0, WALL_TOP - .05, 0);
+      for (const x of [-.25, .25]){ bx(g, STONE, .28, .3, .2, x, WALL_TOP, -.38); bx(g, STONE, .26, .2, .14, x, WALL_TOP, .41); }
+      bx(g, STONE2, 1, .07, .2, 0, WALL_TOP, -.38); bx(g, STONE2, 1, .05, .14, 0, WALL_TOP, .41);
+      bx(g, DARK, .09, .26, .04, 0, .62, -.49);
+      bx(g, P.main, 1.0, .07, .03, 0, .24, -.495); bx(g, P.main, 1.0, .07, .03, 0, .24, .495);
     },
+    // البوابة: برج عبور فوق الطريق، دعامتان وجسر حجري علوي بشرفات
     gate(g, P){
-      bx(g, STONE_D, 1.02, .14, 1.02, 0, 0, 0);
-      bx(g, STONE, .24, 1.45, 1, -.38, 0, 0); bx(g, STONE, .24, 1.45, 1, .38, 0, 0);
-      bx(g, STONE, 1, .32, 1, 0, 1.13, 0);
-      bx(g, STONE, .3, .26, .22, -.32, 1.45, -.39); bx(g, STONE, .3, .26, .22, .32, 1.45, -.39);
-      bx(g, WOOD_D, .54, 1.13, .12, 0, 0, -.3);
-      for (const x of [-.18, 0, .18]) bx(g, '#5e3518', .03, 1.1, .02, x, 0, -.37);
-      bx(g, DARK, .56, .06, .14, 0, .3, -.3); bx(g, DARK, .56, .06, .14, 0, .78, -.3);
-      bx(g, P.main, .42, .3, .03, 0, 1.12, -.515);
-      bx(g, P.main, .42, .3, .03, 0, 1.12, .515);
+      bx(g, STONE_D, 1.04, .16, 1.04, 0, 0, 0);
+      for (const x of [-.39, .39]){ bx(g, STONE, .24, 1.45, 1.04, x, 0, 0); bx(g, STONE_D, .28, .14, 1.08, x, 0, 0); }
+      bx(g, STONE, 1.06, .36, 1.08, 0, 1.18, 0);
+      bx(g, STONE2, 1.1, .06, 1.12, 0, 1.54, 0);
+      for (const x of [-.36, 0, .36]){ bx(g, STONE, .22, .28, .2, x, 1.6, -.44); bx(g, STONE, .22, .22, .16, x, 1.6, .46); }
+      bx(g, WOOD_D, .52, 1.16, .1, 0, 0, -.32);
+      for (const x of [-.17, 0, .17]) bx(g, '#5e3518', .03, 1.12, .02, x, 0, -.38);
+      bx(g, DARK, .54, .05, .12, 0, .32, -.32); bx(g, DARK, .54, .05, .12, 0, .8, -.32);
+      bx(g, P.main, .5, .2, .03, 0, 1.24, -.555); bx(g, P.main, .5, .2, .03, 0, 1.24, .555);
     },
+    // البرج: مربع أعلى من السور بوضوح، سطحه منصة خشبية تحيط بها الشرفات
     tower(g, P){
-      bx(g, STONE_D, 1.95, .2, 1.95, 0, 0, 0);
-      bx(g, STONE, 1.7, 2.2, 1.7, 0, .2, 0);
-      bx(g, P.main, 1.73, .14, 1.73, 0, 1.75, 0);
-      bx(g, STONE2, 1.96, .2, 1.96, 0, 2.2, 0);
-      for (const s of [-1, 1]){ merlons(g, STONE, 3, 1.9, 'x', 2.4, s * .86, .3); merlons(g, STONE, 3, 1.9, 'z', 2.4, s * .86, .3); }
-      for (const [x, z, ry] of [[0, -.86, 0], [0, .86, 0], [-.86, 0, Math.PI / 2], [.86, 0, Math.PI / 2]]) bx(g, DARK, .14, .4, .04, x, 1.1, z, 0, ry, 0);
-      pyr(g, P.roof, 1.45, .95, 1.45, 0, 2.4, 0);
+      bx(g, STONE_D, 2.0, .22, 2.0, 0, 0, 0);
+      bx(g, STONE, 1.8, 1.95, 1.8, 0, .22, 0);
+      bx(g, P.main, 1.83, .1, 1.83, 0, .5, 0);
+      bx(g, STONE2, 2.0, .2, 2.0, 0, 2.17, 0);
+      bx(g, '#d9874a', 1.6, .04, 1.6, 0, 2.37, 0);
+      for (let i = -3; i <= 3; i++) bx(g, i % 2 ? '#c87a40' : '#df9356', .2, .045, 1.6, i * .22, 2.37, 0);
+      for (const s of [-1, 1]){ merlons(g, STONE, 4, 1.95, 'x', 2.37, s * .89, .28); merlons(g, STONE, 4, 1.95, 'z', 2.37, s * .89, .28); }
+      for (const [x, z, ry] of [[0, -.91, 0], [0, .91, 0], [-.91, 0, Math.PI / 2], [.91, 0, Math.PI / 2]]){ bx(g, DARK, .14, .36, .04, x, 1.35, z, 0, ry, 0); bx(g, DARK, .11, .22, .04, x, .85, z, 0, ry, 0); }
     },
+    // الحصن: قاعة كبيرة وبرج رئيسي عالٍ وأربعة أبراج زاوية بمنصات وشرفات
     keep(g, P){
-      bx(g, STONE_D, 6, .25, 3, 0, 0, 0);
-      bx(g, STONE, 4.3, 1.9, 2.3, 0, .25, 0);
-      pyr(g, P.roof, 4.6, 1.15, 2.6, 0, 2.15, 0);
-      bx(g, STONE, 1.5, 3.0, 1.5, 0, .25, -.1);
-      bx(g, STONE2, 1.7, .18, 1.7, 0, 3.25, -.1);
-      for (const s of [-1, 1]){ merlons(g, STONE, 3, 1.6, 'x', 3.43, -.1 + s * .74, .26); merlons(g, STONE, 3, 1.6, 'z', 3.43, s * .74, .26); }
-      pyr(g, P.roof, 1.25, 1.0, 1.25, 0, 3.43, -.1);
+      bx(g, STONE_D, 6, .28, 3, 0, 0, 0);
+      bx(g, STONE, 4.2, 2.1, 2.2, 0, .28, 0);
+      bx(g, P.main, 4.24, .1, 2.24, 0, 1.6, 0);
+      pyr(g, P.roof, 4.5, 1.1, 2.5, 0, 2.38, 0);
+      bx(g, STONE, 1.6, 3.6, 1.6, 0, .28, -.1);
+      bx(g, STONE2, 1.8, .2, 1.8, 0, 3.88, -.1);
+      bx(g, '#d9874a', 1.5, .04, 1.5, 0, 4.08, -.1);
+      for (const s of [-1, 1]){ merlons(g, STONE, 4, 1.75, 'x', 4.08, -.1 + s * .8, .26); merlons(g, STONE, 4, 1.75, 'z', 4.08, s * .8, .26); }
+      for (const [x, z] of [[0, -.91], [0, .71]]) bx(g, DARK, .16, .4, .04, x, 3.0, z);
       for (const [x, z] of [[-2.45, -1], [2.45, -1], [-2.45, 1], [2.45, 1]]){
-        bx(g, STONE, 1.0, 2.5, 1.0, x, .25, z);
-        bx(g, STONE2, 1.12, .14, 1.12, x, 2.75, z);
-        pyr(g, P.roof, 1.0, .85, 1.0, x, 2.89, z);
-        bx(g, DARK, .12, .32, .04, x, 1.5, z + .52);
+        bx(g, STONE, 1.05, 3.0, 1.05, x, .28, z);
+        bx(g, STONE2, 1.18, .16, 1.18, x, 3.28, z);
+        bx(g, '#d9874a', .95, .04, .95, x, 3.44, z);
+        for (const s of [-1, 1]) for (const t of [-.4, 0, .4]){ bx(g, STONE, .22, .22, .18, x + t, 3.44, z + s * .5); bx(g, STONE, .18, .22, .22, x + s * .5, 3.44, z + t); }
+        bx(g, DARK, .12, .32, .04, x, 1.9, z + .54);
       }
-      bx(g, '#d9cdb7', 1.0, 1.25, .12, 0, .25, 1.16);
-      bx(g, WOOD_D, .72, 1.05, .1, 0, .25, 1.2);
-      bx(g, DARK, .76, .07, .12, 0, .55, 1.2); bx(g, DARK, .76, .07, .12, 0, .95, 1.2);
-      for (const x of [-1.35, 1.35]){ bx(g, DARK, .22, .36, .04, x, 1.2, 1.16); }
-      for (const x of [-.8, .8]) bx(g, P.main, .34, .8, .04, x, 1.05, 1.17);
+      bx(g, '#d9cdb7', 1.0, 1.3, .12, 0, .28, 1.12);
+      bx(g, WOOD_D, .72, 1.1, .1, 0, .28, 1.16);
+      bx(g, DARK, .76, .07, .12, 0, .6, 1.16); bx(g, DARK, .76, .07, .12, 0, 1.0, 1.16);
+      for (const x of [-1.35, 1.35]){ bx(g, DARK, .22, .4, .04, x, 1.25, 1.12); }
+      for (const x of [-.8, .8]) bx(g, P.main, .34, .8, .04, x, 1.1, 1.13);
     },
     bridge(g, P){
       for (let i = 0; i < 13; i++) bx(g, i % 2 ? PLANK : '#df8b52', 2.0, .1, .232, 0, -.02, -1.508 + .116 + i * .232);
@@ -541,7 +549,7 @@ const R3 = (function(){
     bx(g, '#f5d36b', .06, .06, .06, 0, .95, 0);
     return g.done();
   }
-  const FLAGS = {keep:[[0, 4.4, -.1]], tower:[[0, 3.32, 0]], goldmine:[[.7, .75, -.6]], workshop:[[-1.3, 1.1, -.8]], lumber:[[-.9, .06, -.4]], quarry:[], ironmine:[[.75, .06, .35]]};
+  const FLAGS = {keep:[[0, 4.1, -.1]], tower:[[0, 2.4, 0]], goldmine:[[.7, .75, -.6]], workshop:[[-1.3, 1.1, -.8]], lumber:[[-.9, .06, -.4]], quarry:[], ironmine:[[.75, .06, .35]]};
 
   /* ---------- الطبيعة: أشجار وصخور ورواسب ---------- */
   function treeRound(){ const g = new Geo(); bx(g, '#d0682f', .13, .5, .13, 0, 0, 0); bx(g, '#d0682f', .06, .25, .06, .1, .32, 0, 0, 0, -.6); ico(g, '#45b33a', .36, 0, .78, 0, 1, 1.05, 1); ico(g, '#5cc444', .24, .18, .98, .08); return g.done(); }
@@ -786,7 +794,7 @@ const R3 = (function(){
   function heightAtCell(x, y){
     const s = structAt(Math.floor(x), Math.floor(y));
     if (!s) return 0;
-    return s.type === 'keep' ? 2.4 : s.type === 'bridge' ? .1 : structTop(s);
+    return s.type === 'keep' ? 2.6 : s.type === 'bridge' ? .1 : structTop(s);
   }
   function wrap(a){ while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
 
