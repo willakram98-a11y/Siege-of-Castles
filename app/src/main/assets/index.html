@@ -277,15 +277,14 @@ const R3 = (function(){
       for (const x of [-.8, .8]) bx(g, P.main, .34, .8, .04, x, 1.05, 1.17);
     },
     bridge(g, P){
-      for (let i = 0; i < 9; i++) bx(g, i % 2 ? PLANK : '#df8b52', 2.0, .1, .232, 0, -.02, -1.05 + .116 + i * .232);
-      for (const z of [-.6, .6]) bx(g, WOOD_D, 1.9, .1, .1, 0, -.12, z);
+      for (let i = 0; i < 13; i++) bx(g, i % 2 ? PLANK : '#df8b52', 2.0, .1, .232, 0, -.02, -1.508 + .116 + i * .232);
+      for (const z of [-1.05, 0, 1.05]) bx(g, WOOD_D, 1.9, .1, .1, 0, -.12, z);
       for (const x of [-.97, .97]){
-        bx(g, WOOD_D, .07, .12, 2.1, x, .08, 0);
-        for (const z of [-1.0, 0, 1.0]) bx(g, WOOD_D, .1, .32, .1, x, -.02, z);
-        for (const z of [-.45, .45]) bx(g, '#6e4020', .12, .8, .12, x, -.8, z);
+        bx(g, WOOD_D, .07, .12, 3.1, x, .08, 0);
+        for (const z of [-1.5, -.5, .5, 1.5]) bx(g, WOOD_D, .1, .32, .1, x, -.02, z);
       }
-      for (const z of [-.45, .45]) bx(g, '#6e4020', .12, .8, .12, 0, -.8, z);
-      for (const x of [-.97, .97]) for (const z of [-1.0, 1.0]) bx(g, P.main, .12, .08, .12, x, .3, z);
+      for (const x of [-.97, 0, .97]) for (const z of [-.6, .6]) bx(g, '#6e4020', .12, .8, .12, x, -.8, z);
+      for (const x of [-.97, .97]) for (const z of [-1.5, 1.5]) bx(g, P.main, .12, .08, .12, x, .3, z);
     },
     lumber(g, P){
       bx(g, '#a8875f', 2, .06, 1, 0, 0, 0);
@@ -625,7 +624,7 @@ const R3 = (function(){
     for (const my of MOAT_TOPS){
       for (let x = X0; x < X1; x++){
         quad(x, 0, my, x + 1, 0, my, x + 1, MOAT_BED, my, x, MOAT_BED, my, (x & 1) ? '#e9c88e' : '#e2c086');
-        quad(x + 1, 0, my + 2, x, 0, my + 2, x, MOAT_BED, my + 2, x + 1, MOAT_BED, my + 2, (x & 1) ? '#e9c88e' : '#e2c086');
+        quad(x + 1, 0, my + MOAT_W, x, 0, my + MOAT_W, x, MOAT_BED, my + MOAT_W, x + 1, MOAT_BED, my + MOAT_W, (x & 1) ? '#e9c88e' : '#e2c086');
       }
     }
     const g = new T3.BufferGeometry();
@@ -638,11 +637,11 @@ const R3 = (function(){
     const fm = new T3.MeshBasicMaterial({color:'#e8fbff', transparent:true, opacity:.55, depthWrite:false});
     water = [];
     for (const my of MOAT_TOPS){
-      const pg = new T3.PlaneGeometry(X1 - X0, 2, (X1 - X0), 4); pg.rotateX(-Math.PI / 2); pg.translate((X0 + X1) / 2, WATER_Y, my + 1);
+      const pg = new T3.PlaneGeometry(X1 - X0, MOAT_W, (X1 - X0), 6); pg.rotateX(-Math.PI / 2); pg.translate((X0 + X1) / 2, WATER_Y, my + MOAT_W / 2);
       const wmsh = new T3.Mesh(pg, wm); wmsh.receiveShadow = true; scene.add(wmsh);
       const base = Float32Array.from(pg.attributes.position.array);
       water.push({g:pg, base});
-      for (const z of [my + .1, my + 1.9]){
+      for (const z of [my + .1, my + MOAT_W - .1]){
         const fg = new T3.PlaneGeometry(X1 - X0, .18); fg.rotateX(-Math.PI / 2); fg.translate((X0 + X1) / 2, WATER_Y + .03, z);
         scene.add(new T3.Mesh(fg, fm));
       }
@@ -946,12 +945,12 @@ const R3 = (function(){
 'use strict';
 const HEADLESS = typeof document === 'undefined';
 /* ================== الخريطة ==================
-   الصفوف (من الأعلى): أرض العدو 0-27 وفيها قلعته | خندق 28-29 | الأرض المحايدة 30-39 | خندق 40-41 | أرضك 42-69 وفيها قلعتك
+   الصفوف (من الأعلى): أرض العدو 0-27 وفيها قلعته | خندق 28-30 | الأرض المحايدة 31-38 | خندق 39-41 | أرضك 42-69 وفيها قلعتك
    كل قلعة سور كامل يحيط بالحصن من الجهات الأربع، بأبراج في الزوايا وبوابات في كل جهة، وحولها أرض مكشوفة */
 const COLS = 50, ROWS = 70;   // خلف كل قلعة 13 صفاً من الأرض المفتوحة
-const MOAT_TOPS = [28, 40];
-const isMoat = y => y === 28 || y === 29 || y === 40 || y === 41;
-const isNeutral = y => y >= 30 && y <= 39;
+const MOAT_TOPS = [28, 39], MOAT_W = 3;   // لا يُعبر الخندق إلا فوق جسر مكتمل
+const isMoat = y => (y >= 28 && y <= 30) || (y >= 39 && y <= 41);
+const isNeutral = y => y >= 31 && y <= 38;
 const KEEP_W = 6, KEEP_H = 3, MIDX = 25;
 const idx = (x, y) => y * COLS + x;
 /* هندسة القلعة (معرّفة لقلعتك، وقلعة العدو صورتها المعكوسة تماماً) */
@@ -960,33 +959,31 @@ const CASTLE = (function(){
   const mr = ([x, y], w, h) => [COLS - x - w, ROWS - y - h];
   const base = {box:{x0:19, y0:48, x1:30, y1:56},
     gates:[[24,48],[25,48],[24,56],[25,56],[19,52],[30,52]],
-    gaps:[[21,48],[28,48],[19,54],[30,50]],
     towers:[[18,47],[30,47],[18,56],[30,56]],
     keep:[22,51]};
   const build = (b, T) => {
-    const c = {T, box:b.box, gates:b.gates, gaps:b.gaps, towers:b.towers, keep:b.keep, ring:[], ringSet:new Set(), gateSet:new Set(), gapSet:new Set()};
+    const c = {T, box:b.box, gates:b.gates, towers:b.towers, keep:b.keep, ring:[], ringSet:new Set(), gateSet:new Set()};
     const {x0, y0, x1, y1} = b.box;
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (x === x0 || x === x1 || y === y0 || y === y1){ c.ring.push([x, y]); c.ringSet.add(x + ',' + y); }
     b.gates.forEach(([x, y]) => c.gateSet.add(x + ',' + y));
-    b.gaps.forEach(([x, y]) => c.gapSet.add(x + ',' + y));
     c.frontY = T === 0 ? y0 : y1;
     c.cx = (x0 + x1 + 1) / 2; c.cy = (y0 + y1 + 1) / 2;
     return c;
   };
   const c0 = build(base, 0);
   const b1 = {box:{x0:COLS - 1 - base.box.x1, y0:ROWS - 1 - base.box.y1, x1:COLS - 1 - base.box.x0, y1:ROWS - 1 - base.box.y0},
-    gates:base.gates.map(mp), gaps:base.gaps.map(mp), towers:base.towers.map(t => mr(t, 2, 2)), keep:mr(base.keep, KEEP_W, KEEP_H)};
+    gates:base.gates.map(mp), towers:base.towers.map(t => mr(t, 2, 2)), keep:mr(base.keep, KEEP_W, KEEP_H)};
   return [c0, build(b1, 1)];
 })();
 const isRing = (T, x, y) => CASTLE[T].ringSet.has(x + ',' + y);
 const inCastle = (T, x, y, pad) => { const b = CASTLE[T].box; pad = pad || 0; return x >= b.x0 - pad && x <= b.x1 + pad && y >= b.y0 - pad && y <= b.y1 + pad; };
 const inb = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
 const TEAM = [
-  {color:'#3b82f6', dark:'#1e3a8a', light:'#bfdbfe', rows:[42,69], front:42, nFront:30, homeMoat:40, farMoat:28},
-  {color:'#e5484d', dark:'#7f1d1d', light:'#fecaca', rows:[0,27],  front:26, nFront:38, homeMoat:28, farMoat:40}
+  {color:'#3b82f6', dark:'#1e3a8a', light:'#bfdbfe', rows:[42,69], front:42, nFront:32, homeMoat:39, farMoat:28},
+  {color:'#e5484d', dark:'#7f1d1d', light:'#fecaca', rows:[0,27],  front:26, nFront:36, homeMoat:28, farMoat:39}
 ];
 const depthOwn = (T, cy) => T === 0 ? cy - 42 : 28 - cy;
-const depthN = (T, cy) => T === 0 ? 40 - cy : cy - 30;
+const depthN = (T, cy) => T === 0 ? 39 - cy : cy - 31;
 const RES = ['gold','iron','wood','stone'];
 const RICON = {gold:'🪙', iron:'🔩', wood:'🪵', stone:'🪨'};
 const RNAME = {gold:'ذهب', iron:'حديد', wood:'خشب', stone:'حجر'};
@@ -1003,7 +1000,7 @@ const SDEF = {
   wall:    {name:'جدار', w:1,h:1, hp:360, mat:'stone', icon:'🧱', cost:{stone:15}, time:4, info:'يسدّ الفجوات'},
   gate:    {name:'بوابة', w:1,h:1, hp:420, mat:'wood', icon:'🚪', cost:{wood:20,iron:10,stone:10}, time:6, info:'تعبرها قواتك فقط'},
   tower:   {name:'برج', w:2,h:2, hp:520, mat:'stone', icon:'🗼', cost:{gold:20,wood:30,stone:70}, time:12, range:5, dmg:9, cd:1.1, info:'يرمي فوق السور • ٤'},
-  bridge:  {name:'جسر', w:2,h:2, hp:380, mat:'wood', icon:'🌉', cost:{wood:60}, time:10, info:'عبور سريع للجميع حتى المنجنيق'},
+  bridge:  {name:'جسر', w:2,h:3, hp:420, mat:'wood', icon:'🌉', cost:{wood:70}, time:12, info:'الطريق الوحيد لعبور الخندق'},
   lumber:  {name:'معمل أخشاب', w:2,h:1, hp:200, mat:'wood', icon:'🪓', cost:{gold:25}, time:7, prod:{wood:.95}, dep:'wood', info:'خشب • مربعان'},
   quarry:  {name:'معمل أحجار', w:2,h:1, hp:220, mat:'stone', icon:'⛏️', cost:{gold:25,wood:20}, time:8, prod:{stone:.8}, dep:'stone', info:'حجر • مربعان'},
   goldmine:{name:'منجم ذهب', w:2,h:2, hp:320, mat:'stone', icon:'💰', cost:{wood:60,stone:50}, time:12, prod:{gold:1.25}, dep:'gold', info:'ذهب • ٤ مربعات'},
@@ -1034,7 +1031,7 @@ const DEP = new Array(COLS*ROWS).fill(null);
   rect('gold', 13,48, 14,49); rect('gold', 35,55, 36,56);
   rect('iron', 37,44, 38,45); rect('iron', 6,53, 7,54);
   // الأرض المحايدة
-  rect('gold', 23,34, 26,35); rect('iron', 10,36, 11,37); rect('stone', 3,31, 5,32); rect('wood', 16,38, 18,39);
+  rect('gold', 23,34, 26,35); rect('iron', 10,36, 11,37); rect('stone', 3,31, 5,32); rect('wood', 16,37, 18,38);
 })();
 
 /* ================== الحالة ================== */
@@ -1063,7 +1060,7 @@ function newGame(diff, demo, mp){
     for (const [x, y] of C.towers){ const tw = addStruct('tower', T, x, y, 2, 2, true); tw.castle = true; }
     for (const [x, y] of C.ring){
       const k = x + ',' + y;
-      if (G.sg[idx(x, y)] || C.gapSet.has(k)) continue; // الفجوات التي تركها البنّاؤون
+      if (G.sg[idx(x, y)]) continue; // السور يبدأ مكتملاً
       addStruct(C.gateSet.has(k) ? 'gate' : 'wall', T, x, y, 1, 1, true);
     }
     for (const t of ['footman','footman','footman','archer']){ const sp = findFreeNear(G.keep[T], 1); if (sp) makeUnit(t, T, sp[0], sp[1]); }
@@ -1119,8 +1116,20 @@ function addStruct(type, team, x, y, w, h, built){
   for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) G.sg[idx(x+dx, y+dy)] = s.id;
   return s;
 }
+// ممرّ الجسر (ثلاثة صفوف أمامه من الجهتين) يبقى خالياً من المباني
+function bridgeMouth(X, Y){
+  for (const my of MOAT_TOPS){
+    const ry = Y >= my - 3 && Y < my ? my : Y >= my + MOAT_W && Y < my + MOAT_W + 3 ? my + MOAT_W - 1 : -1;
+    if (ry < 0) continue;
+    for (let dx = -1; dx <= 1; dx++){ const b = structAt(X + dx, ry); if (b && b.type === 'bridge') return true; }
+  }
+  return false;
+}
 function canPlace(T, type, x, y, w, h){
-  if (type === 'bridge' && (!MOAT_TOPS.includes(y) || w !== 2 || h !== 2)) return false;
+  if (type === 'bridge'){
+    if (!MOAT_TOPS.includes(y) || w !== 2 || h !== 3) return false;
+    for (let dx = 0; dx < 2; dx++) for (const Y of [y - 1, y + 3]) if (structAt(x + dx, Y)) return false;
+  }
   for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++){
     const X = x+dx, Y = y+dy;
     if (!inb(X, Y)) return false;
@@ -1129,6 +1138,7 @@ function canPlace(T, type, x, y, w, h){
     if (type === 'bridge'){ if (!isMoat(Y)) return false; continue; }
     if (isMoat(Y) || !(inRows(T, Y) || isNeutral(Y))) return false;
     if (type !== 'wall' && type !== 'gate' && isRing(T, X, Y)) return false;
+    if (bridgeMouth(X, Y)) return false;
   }
   return true;
 }
@@ -1149,6 +1159,7 @@ function destroyStruct(s, quiet){
   puff(s.x + s.w/2, s.y + s.h/2, '#9a9083', 18 + s.w*s.h*4, 2.2);
   if (G.mp) G.nRm.push(s.id);
   if (!quiet) notify(s.team, '💥 تهدّم: ' + SDEF[s.type].name);
+  if (s.type === 'bridge') rescueFromMoat();
   if (s.type === 'keep') endGame(1 - s.team);
 }
 function finishDemolish(s){
@@ -1167,6 +1178,29 @@ function findFreeNear(s, size){
     if (d < bd){ bd = d; best = [x, y]; }
   }
   return bd < 6 ? best : null;
+}
+// من بقي فوق الماء بعد سقوط جسر يسبح إلى أقرب أرض
+function inWater(x, y, size){
+  for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++){
+    const Y = y+dy; if (!isMoat(Y)) continue;
+    const b = structAt(x+dx, Y); if (!(b && b.type === 'bridge' && b.built)) return true;
+  }
+  return false;
+}
+function rescueFromMoat(){
+  for (const u of G.units.values()){
+    if (!inWater(u.cx, u.cy, u.size) && !(u.moving && inWater(u.nx, u.ny, u.size))) continue;
+    let best = null, bd = 1e9;
+    for (let y = Math.max(0, u.cy - 6); y <= Math.min(ROWS - u.size, u.cy + 6); y++) for (let x = Math.max(0, u.cx - 4); x <= Math.min(COLS - u.size, u.cx + 4); x++){
+      if (!footFree(x, y, u.size)) continue;
+      const d = Math.hypot(x - u.cx, y - u.cy) + (TEAM[u.team].rows[0] <= y && y <= TEAM[u.team].rows[1] ? 0 : .5);
+      if (d < bd){ bd = d; best = [x, y]; }
+    }
+    if (!best){ killUnit(u); continue; }
+    release(u, u.cx, u.cy); if (u.moving) release(u, u.nx, u.ny);
+    u.cx = u.px = u.nx = best[0]; u.cy = u.py = u.ny = best[1]; u.moving = false; u.carry = 0;
+    occupy(u, u.cx, u.cy); setIdle(u);
+  }
 }
 function footFree(x, y, size){
   for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++){
@@ -1239,7 +1273,7 @@ function cellCost(u, x, y, breach, avoid){
   let c = 1;
   if (sid){
     const s = G.structs.get(sid);
-    if (s.type === 'bridge'){ if (treb && !s.built) return Infinity; c = s.built ? 1 : 3.5; }
+    if (s.type === 'bridge'){ if (!s.built) return Infinity; }
     else if (s.team === u.team){
       if (s.type === 'gate' && s.built) c = 1.3;
       else if (s.type === 'wall' && s.built && u.type === 'archer') c = 2.5;
@@ -1249,7 +1283,7 @@ function cellCost(u, x, y, breach, avoid){
       const dps = Math.max(.5, calcDmg(u.type, s) / UDEF[u.type].cd);
       c = 4 + Math.min(60, s.hp / dps * .25);
     }
-  } else if (isMoat(y)){ if (treb) return Infinity; c = 3.5; }
+  } else if (isMoat(y)) return Infinity;
   if (avoid){ const o = G.occ[i]; if (o && o !== u.id) c += 5; }
   return c;
 }
@@ -1304,8 +1338,31 @@ function findPath(u, goal, breach, avoid, hf){
   }
   return null;
 }
-function ensurePath(u, tag, goal, breach, every, hf){
+// الخنادق تقسم الميدان إلى ثلاث مناطق لا يصل بينها إلا جسر مكتمل.
+// فحص سريع: إن كان الهدف في منطقة لا تصلها الوحدة فلا داعي للبحث عن طريق في الخريطة كلها.
+const ZONES = [[0, 27], [31, 38], [42, ROWS - 1]];
+let _zt = -1, _zb = [false, false];
+function moatBridged(k){
+  if (_zt !== G.t){ _zt = G.t; _zb = [false, false];
+    for (const s of G.structs.values()) if (s.type === 'bridge' && s.built) _zb[s.y === MOAT_TOPS[0] ? 0 : 1] = true; }
+  return _zb[k];
+}
+function canReachRows(u, ty0, ty1, rg){
+  const z = [false, false, false];
+  for (let y = u.cy; y < u.cy + u.size; y++){
+    if (y < 28) z[0] = true; else if (y <= 30){ z[0] = z[1] = true; } else if (y <= 38) z[1] = true; else if (y <= 41){ z[1] = z[2] = true; } else z[2] = true;
+  }
+  const b0 = moatBridged(0), b1 = moatBridged(1);
+  for (let k = 0; k < 2; k++){ if (b0 && (z[0] || z[1])) z[0] = z[1] = true; if (b1 && (z[1] || z[2])) z[1] = z[2] = true; }
+  const bands = ZONES.filter((_, i) => z[i]);
+  if (b0 && (z[0] || z[1])) bands.push([28, 30]);
+  if (b1 && (z[1] || z[2])) bands.push([39, 41]);
+  const slack = rg + u.size + 1;
+  return bands.some(([a, b]) => Math.max(0, ty0 - b, a - ty1) <= slack);
+}
+function ensurePath(u, tag, goal, breach, every, hf, rows){
   if (u.pathTag !== tag || u.repathT <= 0){
+    if (rows && !canReachRows(u, rows[0], rows[1], rows[2])){ u.path = []; u.pathTag = tag; u.repathT = every * (0.85 + Math.random() * .3); return 'none'; }
     const p = findPath(u, goal, breach, u.avoid, hf);
     u.path = p || []; u.avoid = false; u.pathTag = tag; u.repathT = every * (0.85 + Math.random() * .3);
     return p === null ? 'none' : 'new';
@@ -1329,10 +1386,10 @@ function tryStep(u){
     const i = idx(X, Y), sid = G.sg[i];
     if (sid){
       const s = G.structs.get(sid);
-      if (s.type === 'bridge'){ if (u.type === 'trebuchet' && !s.built){ u.path = []; u.repathT = 0; return 'fail'; } }
+      if (s.type === 'bridge'){ if (!s.built){ u.path = []; u.repathT = 0; return 'fail'; } }
       else if (s.team !== u.team) return {obs:s};
       else if (!ownPassable(u, s)){ u.path = []; u.repathT = 0; return 'fail'; }
-    } else if (isMoat(Y) && u.type === 'trebuchet'){ u.path = []; u.repathT = 0; return 'fail'; }
+    } else if (isMoat(Y)){ u.path = []; u.repathT = 0; return 'fail'; }
     const o = G.occ[i];
     if (o && o !== u.id){
       const ou = G.units.get(o);
@@ -1385,6 +1442,21 @@ function shove(f, by){
     return;
   }
 }
+// صديقان متقابلان في ممرّ ضيّق (كالجسر) يتبادلان مكانيهما بدل أن يسدّ كلٌّ طريق الآخر،
+// ومن طال انتظاره خلف صديق واقف يتبادل معه المكان أيضاً
+function trySwap(u, f){
+  if (u.size !== 1 || f.size !== 1 || f.moving) return false;
+  const [ux, uy] = u.path[0];
+  if (ux !== f.cx || uy !== f.cy) return false;
+  const mutual = f.path.length && f.path[0][0] === u.cx && f.path[0][1] === u.cy;
+  if (!mutual && u.blockedT < .7) return false;
+  const fx = u.cx, fy = u.cy;
+  G.occ[idx(ux, uy)] = u.id; G.occ[idx(fx, fy)] = f.id;
+  u.moving = true; u.nx = ux; u.ny = uy; u.path.shift(); u.blockedT = 0;
+  f.moving = true; f.nx = fx; f.ny = fy; f.blockedT = 0;
+  if (mutual) f.path.shift(); else { f.path = []; f.repathT = 0; if (f.order.type === 'idle'){ f.order.hx = fx; f.order.hy = fy; } }
+  return true;
+}
 function stepAlong(u, dt){
   if (u.moving || !u.path.length) return;
   const r = tryStep(u);
@@ -1394,6 +1466,7 @@ function stepAlong(u, dt){
   const prev = u.blockedT;
   u.blockedT += dt;
   if (r.friend.order.type === 'idle' && !r.friend.moving && u.blockedT > .3) shove(r.friend, u);
+  else if (trySwap(u, r.friend)) return;
   if (prev < .9 && u.blockedT >= .9){ u.avoid = true; u.repathT = 0; }
   if (u.blockedT > 2.6){ u.avoid = true; u.repathT = 0; u.blockedT = 1; }
 }
@@ -1493,7 +1566,7 @@ function chase(u, t, dt, breach){
   const r = t.kind === 'u' ? {x:t.cx, y:t.cy, w:t.size, h:t.size} : sRect(t);
   const d = UDEF[u.type], rg = d.range, hs = u.size / 2;
   const res = ensurePath(u, 'c' + t.id, (x, y) => { const dd = distPR(x + hs, y + hs, r); return dd <= rg && (!d.minRange || dd >= d.minRange); },
-                         breach, t.kind === 'u' ? .8 : 2.5, (x, y) => Math.max(0, distPR(x + hs, y + hs, r) - rg));
+                         breach, t.kind === 'u' ? .8 : 2.5, (x, y) => Math.max(0, distPR(x + hs, y + hs, r) - rg), [r.y, r.y + r.h - 1, rg]);
   if (res === 'none'){ u.fails++; }
   stepAlong(u, dt);
 }
@@ -1529,7 +1602,7 @@ function doIdle(u, dt){
     if (!wall && u.type !== 'trebuchet' && Math.hypot(u.cx - o.hx, u.cy - o.hy) < 4){ chase(u, t, dt, false); return; }
   }
   if (o.hx != null && Math.hypot(u.cx - o.hx, u.cy - o.hy) > 1.5){
-    ensurePath(u, 'hold', (x, y) => Math.abs(x - o.hx) <= 1 && Math.abs(y - o.hy) <= 1, false, 3, (x, y) => Math.max(0, Math.hypot(x - o.hx, y - o.hy) - 1.5));
+    ensurePath(u, 'hold', (x, y) => Math.abs(x - o.hx) <= 1 && Math.abs(y - o.hy) <= 1, false, 3, (x, y) => Math.max(0, Math.hypot(x - o.hx, y - o.hy) - 1.5), [o.hy, o.hy, 1.5]);
     stepAlong(u, dt);
   }
 }
@@ -1537,7 +1610,7 @@ function doMove(u, dt){
   const o = u.order, treb = u.type === 'trebuchet';
   const goal = treb ? (x, y) => Math.abs(x - o.x) <= 1 && Math.abs(y - o.y) <= 1 : (x, y) => x === o.x && y === o.y;
   if (goal(u.cx, u.cy)){ setIdle(u); return; }
-  const r = ensurePath(u, 'mv', goal, false, 3, (x, y) => Math.max(0, Math.hypot(x - o.x, y - o.y) - (treb ? 1.5 : 0)));
+  const r = ensurePath(u, 'mv', goal, false, 3, (x, y) => Math.max(0, Math.hypot(x - o.x, y - o.y) - (treb ? 1.5 : 0)), [o.y, o.y, 1.5]);
   if (r === 'none'){ if (++u.fails >= 3){ setIdle(u); return; } }
   stepAlong(u, dt);
   if (u.blockedT > 2 && u.path.length <= 1) setIdle(u);
@@ -1551,6 +1624,10 @@ function doAttackOrder(u, dt){
   chase(u, t, dt, true);
   if (u.fails >= 4){ setIdle(u); }
 }
+function nearBridge(x, size){
+  for (const s of G.structs.values()) if (s.type === 'bridge' && x + size > s.x - 2 && x < s.x + s.w + 2) return true;
+  return false;
+}
 function trebFront(u){ const tm = TEAM[u.team]; return isNeutral(u.cy) || isNeutral(u.cy + 1) ? tm.nFront : tm.front; }
 function doAssault(u, dt){
   const d = UDEF[u.type];
@@ -1558,8 +1635,8 @@ function doAssault(u, dt){
     const t = acquire(u, d.range);
     if (t && inReach(u, t)){ attackIfReady(u, t); return; }
     const fy = trebFront(u);
-    if (u.cy !== fy){
-      const r = ensurePath(u, 'front', (x, y) => y === fy, false, 3, (x, y) => Math.abs(y - fy));
+    if (u.cy !== fy || (isNeutral(fy) && nearBridge(u.cx, u.size))){
+      const r = ensurePath(u, 'front', (x, y) => y === fy && !(isNeutral(fy) && nearBridge(x, u.size)), false, 3, (x, y) => Math.abs(y - fy), [fy, fy, 0]);
       if (r === 'none' && ++u.fails > 3) setIdle(u);
       stepAlong(u, dt);
     }
@@ -1579,14 +1656,16 @@ function doAssault(u, dt){
       if (o.goAt && G.t < o.goAt){ u.path = []; return; }   // بانتظار بقية الموجة
       o.via = null;
     } else {
-      const r = ensurePath(u, 'via', (x, y) => Math.hypot(x - vx, y - vy) <= 2, false, 3, (x, y) => Math.max(0, Math.hypot(x - vx, y - vy) - 2));
+      const r = ensurePath(u, 'via', (x, y) => Math.hypot(x - vx, y - vy) <= 2, false, 3, (x, y) => Math.max(0, Math.hypot(x - vx, y - vy) - 2), [vy, vy, 2]);
       if (r === 'none' && ++u.fails > 3){ o.via = null; u.fails = 0; }
       stepAlong(u, dt); return;
     }
   }
   if (inReach(u, ek)){ attackIfReady(u, ek); return; }
   const r = sRect(ek), rg = d.range;
-  ensurePath(u, 'keep', (x, y) => distPR(x + .5, y + .5, r) <= rg, true, 3, (x, y) => Math.max(0, distPR(x + .5, y + .5, r) - rg));
+  const res = ensurePath(u, 'keep', (x, y) => distPR(x + .5, y + .5, r) <= rg, true, 3, (x, y) => Math.max(0, distPR(x + .5, y + .5, r) - rg), [r.y, r.y + r.h - 1, rg]);
+  if (res === 'none' && ++u.fails > 3){ setIdle(u); return; }   // لا طريق (لا جسر): انتظر
+  if (res === 'new') u.fails = 0;
   stepAlong(u, dt);
 }
 function doWork(u, dt){
@@ -1613,7 +1692,7 @@ function doWork(u, dt){
     if (Math.random() < dt * 4) sparks(s.x + Math.random()*s.w, s.y + Math.random()*s.h, o.type === 'demolish' ? '#b9a58a' : '#ffd68a', 2);
     return;
   }
-  const res = ensurePath(u, 'w' + s.id, (x, y) => distPR(x + .5, y + .5, r) <= 1, false, 2.5, (x, y) => Math.max(0, distPR(x + .5, y + .5, r) - 1));
+  const res = ensurePath(u, 'w' + s.id, (x, y) => distPR(x + .5, y + .5, r) <= 1, false, 2.5, (x, y) => Math.max(0, distPR(x + .5, y + .5, r) - 1), [r.y, r.y + r.h - 1, 1]);
   if (res === 'none' && ++u.fails >= 3){
     notify(u.team, 'تعذّر وصول الجندي إلى موقع العمل');
     setIdle(u); return;
@@ -1779,7 +1858,7 @@ function freeWallCell(T, u, taken){
 function findSpot(T, type, neutral){
   const sd = SDEF[type], tm = TEAM[T];
   const opts = [[sd.w, sd.h]]; if (sd.w !== sd.h) opts.push([sd.h, sd.w]);
-  const rows = neutral ? [30, 39] : tm.rows;
+  const rows = neutral ? [31, 38] : tm.rows;
   let best = null, bs = -1e9;
   for (const [w, h] of opts) for (let y = rows[0]; y <= rows[1] - h + 1; y++) for (let x = 0; x <= COLS - w; x++){
     if (!canPlace(T, type, x, y, w, h)) continue;
@@ -1787,7 +1866,7 @@ function findSpot(T, type, neutral){
     for (let dy = 0; dy < h && !bad; dy++) for (let dx = 0; dx < w; dx++){
       const X = x+dx, Y = y+dy;
       if (!neutral && (inCastle(T, X, Y, 2) || (X >= 23 && X <= 26 && (T === 0 ? Y < CASTLE[T].box.y0 : Y > CASTLE[T].box.y1)))) { bad = true; break; }
-      if (neutral && (Y === 30 || Y === 39) && X >= 18 && X <= 31 && type !== 'tower') { bad = true; break; }
+      if (neutral && (Y === 31 || Y === 38) && X >= 18 && X <= 31 && type !== 'tower') { bad = true; break; }
       if (sd.dep && DEP[idx(X, Y)] === sd.dep) m++;
     }
     if (bad) continue;
@@ -1827,7 +1906,9 @@ function weakSide(E){
   for (const k in score){ const v = score[k] + Math.random() * 1.5 + (k === 'back' ? .8 : 0); if (v < bs){ bs = v; best = k; } }
   return best;
 }
-function bridgeOn(y){ for (const s of G.structs.values()) if (s.type === 'bridge' && s.y === y) return true; return false; }
+// جسر نملكه (ولو قيد البناء) أو جسر مكتمل لأيّ فريق
+function bridgeOn(T, y){ for (const s of G.structs.values()) if (s.type === 'bridge' && s.y === y && (s.team === T || s.built)) return true; return false; }
+function bridgeBuilt(y){ for (const s of G.structs.values()) if (s.type === 'bridge' && s.y === y && s.built) return true; return false; }
 function aiThink(ai){
   const T = ai.team, E = 1 - T, tm = TEAM[T], R = G.res[T];
   const mine = [], ss = [];
@@ -1869,13 +1950,24 @@ function aiThink(ai){
   }
   // 4) الجسور
   const econ = (cnt.lumber || 0) + (cnt.goldmine || 0) + (cnt.quarry || 0);
-  if (econ >= 3 && !bridgeOn(tm.homeMoat) && canAfford(T, SDEF.bridge.cost)){
-    const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.homeMoat, 2, 2));
-    if (bx != null) placeStruct(T, 'bridge', bx, tm.homeMoat, 2, 2);
-  } else if (army >= 7 && !bridgeOn(tm.farMoat) && canAfford(T, SDEF.bridge.cost)){
-    const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.farMoat, 2, 2));
-    if (bx != null) placeStruct(T, 'bridge', bx, tm.farMoat, 2, 2);
+  if ((econ >= 3 || army >= 4) && !bridgeOn(T, tm.homeMoat) && canAfford(T, SDEF.bridge.cost)){
+    const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.homeMoat, 2, 3));
+    if (bx != null) placeStruct(T, 'bridge', bx, tm.homeMoat, 2, 3);
+  } else if (army >= 7 && bridgeBuilt(tm.homeMoat) && !bridgeOn(T, tm.farMoat) && canAfford(T, SDEF.bridge.cost)){
+    const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.farMoat, 2, 3));
+    if (bx != null){
+      const near = (u, x, y) => Math.hypot(u.cx - x, u.cy - y);
+      const crew = mine.filter(u => u.type === 'footman' && free(u)).sort((a, b) => near(a, bx, tm.homeMoat) - near(b, bx, tm.homeMoat)).slice(0, 3);
+      placeStruct(T, 'bridge', bx, tm.farMoat, 2, 3, crew);
+    }
   }
+  // جسر لم يكتمل ولا أحد يبنيه: أرسل له بنّاءً
+  for (const s of ss) if (s.type === 'bridge' && !s.built && !workersOn(s)){
+    const u = mine.filter(u => u.type === 'footman' && free(u)).sort((a, b) => Math.hypot(a.cx - s.x, a.cy - s.y) - Math.hypot(b.cx - s.x, b.cy - s.y))[0];
+    if (u) orderWork(u, 'build', s);
+  }
+  // لا هجوم ولا غارة قبل أن يكتمل جسرا الطريق إلى العدو
+  const route = bridgeBuilt(tm.homeMoat) && bridgeBuilt(tm.farMoat);
   // 5) ترتيب البناء
   const pending = ss.filter(s => !s.built && s.type !== 'wall' && s.type !== 'gate' && s.type !== 'bridge').length;
   let next = null; const need = {};
@@ -1909,7 +2001,7 @@ function aiThink(ai){
   const ws = ss.find(s => s.type === 'workshop' && s.built && !s.demo);
   const trebs = mine.filter(u => u.type === 'trebuchet').length;
   if (ws && !ws.queue.length && trebs < ai.d.trebs && canAfford(T, UDEF.trebuchet.cost)){ pay(T, UDEF.trebuchet.cost); ws.queue.push({type:'trebuchet', t:0}); }
-  mine.forEach(u => { if (u.type === 'trebuchet' && free(u) && u.cy !== trebFront(u)) setOrder(u, {type:'assault'}); });
+  mine.forEach(u => { if (u.type === 'trebuchet' && free(u) && (u.cy !== trebFront(u) || (isNeutral(u.cy) && nearBridge(u.cx, u.size)))) setOrder(u, {type:'assault'}); });
   // 8) الرماة على السور
   let quota = ai.d.wallArchers - mine.filter(u => u.type === 'archer' && onOwnWall(u)).length;
   for (const u of mine){
@@ -1917,7 +2009,7 @@ function aiThink(ai){
     if (u.type === 'archer' && free(u) && !onOwnWall(u)){ const c = freeWallCell(T, u); if (c){ setOrder(u, {type:'move', x:c[0], y:c[1]}); quota--; } }
   }
   // 9) غارة: فرسان يضربون مناجم العدو ومعامله خارج قلعته
-  if (ai.d.raid && !intr.length && G.t > ai.d.first * .7 && G.t - (ai.lastRaid || 0) > ai.d.raid){
+  if (ai.d.raid && route && !intr.length && G.t > ai.d.first * .7 && G.t - (ai.lastRaid || 0) > ai.d.raid){
     const raiders = mine.filter(u => free(u) && u.type === 'knight').slice(0, 4);
     const k = G.keep[T];
     let tgt = null, td = 1e9;
@@ -1930,14 +2022,15 @@ function aiThink(ai){
   }
   // 10) موجة الهجوم
   const atk = mine.filter(u => free(u) && (u.type === 'footman' || u.type === 'knight'));
-  if (!intr.length && (G.demo || G.t > ai.d.first) && (atk.length >= ai.wave || (G.t - ai.lastAtk > ai.d.regroup && atk.length >= 4))){
+  if (route && !intr.length && (G.demo || G.t > ai.d.first) && (atk.length >= ai.wave || (G.t - ai.lastAtk > ai.d.regroup && atk.length >= 4))){
     // اختيار جهة الهجوم: أمامية أو جانبية أو خلفية للالتفاف على القلعة
     const EC = CASTLE[E], b = EC.box, rnd = Math.random();
     const side = ai.d.smart ? weakSide(E) : rnd < .35 ? 'front' : rnd < .57 ? 'left' : rnd < .79 ? 'right' : 'back';
     let rp, smartRally = ai.d.smart;
     if (smartRally){
       // نقطة تجمّع خارج مدى رماة السور وأبراجه، ثم هجوم جماعي
-      const fy = E === 0 ? b.y0 - 9 : b.y1 + 9, by = E === 0 ? b.y1 + 8 : b.y0 - 8;
+      // التجمّع الأمامي في وسط الأرض المحايدة حتى لا يسدّ الجنود مدخل الجسر
+      const fy = E === 0 ? 35 : 34, by = E === 0 ? b.y1 + 8 : b.y0 - 8;
       rp = {front:[EC.cx, fy], left:[b.x0 - 8, EC.cy], right:[b.x1 + 8, EC.cy], back:[EC.cx, by]}[side];
     } else {
       const fy = E === 0 ? b.y0 - 3 : b.y1 + 3, by = E === 0 ? b.y1 + 2 : b.y0 - 2;
@@ -2030,18 +2123,18 @@ function buildTerrain(){
   g.fillStyle = 'rgba(239,68,68,.07)'; g.fillRect(0, 0, COLS * C, 28 * C);
   g.strokeStyle = 'rgba(0,0,0,.13)'; g.lineWidth = 1; g.beginPath();
   for (let x = 1; x < COLS; x++){
-    for (const [a, b] of [[0, 28], [30, 40], [42, ROWS]]){ g.moveTo(x * C + .5, a * C); g.lineTo(x * C + .5, b * C); }
+    for (const [a, b] of [[0, 28], [31, 39], [42, ROWS]]){ g.moveTo(x * C + .5, a * C); g.lineTo(x * C + .5, b * C); }
   }
   for (let y = 1; y < ROWS; y++){ if (isMoat(y) || isMoat(y - 1)) continue; g.moveTo(0, y * C + .5); g.lineTo(COLS * C, y * C + .5); }
   g.stroke();
   for (const my of MOAT_TOPS){
-    const wg = g.createLinearGradient(0, my * C, 0, (my + 2) * C);
+    const wg = g.createLinearGradient(0, my * C, 0, (my + MOAT_W) * C);
     wg.addColorStop(0, '#1d4a70'); wg.addColorStop(.5, '#2b6a9c'); wg.addColorStop(1, '#1d4a70');
-    g.fillStyle = wg; g.fillRect(0, my * C, COLS * C, 2 * C);
-    g.fillStyle = '#3d2f20'; g.fillRect(0, my * C - 4, COLS * C, 5); g.fillRect(0, (my + 2) * C - 1, COLS * C, 5);
+    g.fillStyle = wg; g.fillRect(0, my * C, COLS * C, MOAT_W * C);
+    g.fillStyle = '#3d2f20'; g.fillRect(0, my * C - 4, COLS * C, 5); g.fillRect(0, (my + MOAT_W) * C - 1, COLS * C, 5);
   }
   g.strokeStyle = 'rgba(250,204,21,.35)'; g.setLineDash([10, 8]); g.lineWidth = 2;
-  g.strokeRect(2, 30 * C + 2, COLS * C - 4, 10 * C - 4); g.setLineDash([]);
+  g.strokeRect(2, 31 * C + 2, COLS * C - 4, 8 * C - 4); g.setLineDash([]);
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++){
     const k = DEP[idx(x, y)]; if (!k) continue;
     const X = x * C, Y = y * C;
@@ -2253,9 +2346,9 @@ function drawWorld(){
   ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.2;
   const step = Math.max(4, CS / 6);
   for (const my of MOAT_TOPS){
-    if (!inView(0, my, COLS, 2)) continue;
-    for (let k = 0; k < 4; k++){
-      const yy = (my + .25 + k * .45) * CS; ctx.beginPath();
+    if (!inView(0, my, COLS, MOAT_W)) continue;
+    for (let k = 0; k < 6; k++){
+      const yy = (my + .25 + k * .5) * CS; ctx.beginPath();
       for (let x = x0 * CS; x <= x1 * CS; x += step){ const y = yy + Math.sin(x / CS * 1.8 + G.t * 2 + k * 1.7) * CS * .07; x === x0 * CS ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
       ctx.stroke();
     }
@@ -2527,10 +2620,10 @@ function cellOkFor(u, x, y, sel){
   const sid = G.sg[i];
   if (sid){
     const s = G.structs.get(sid);
-    if (s.type === 'bridge') return u.type !== 'trebuchet' || s.built;
+    if (s.type === 'bridge') return s.built;
     return s.team === u.team && s.type === 'wall' && s.built && u.type === 'archer';
   }
-  if (u.type === 'trebuchet' && isMoat(y)) return false;
+  if (isMoat(y)) return false;
   return true;
 }
 function moveGroup(units, tx, ty){
@@ -2735,12 +2828,12 @@ function startPlace(type){
   $('pOk').textContent = '✔ ابنِ';
   $('pRot').classList.toggle('hidden', d.w === d.h || type === 'bridge');
   $('placeTxt').textContent = `${d.icon} ${d.name}: اضغط على الخريطة لاختيار الموقع`;
-  if (type === 'bridge'){ const [wx] = s2w(W / 2, H / 2); centerOn(wx, TEAM[ME].homeMoat + 1); $('placeTxt').textContent = '🌉 اضغط على أحد الخندقين لوضع الجسر'; }
+  if (type === 'bridge'){ const [wx] = s2w(W / 2, H / 2); centerOn(wx, TEAM[ME].homeMoat + 1.5); $('placeTxt').textContent = '🌉 اضغط على أحد الخندقين لوضع الجسر'; }
   renderTab();
 }
 function setGhost(cx, cy){
   const p = placing;
-  if (p.type === 'bridge'){ p.x = Math.max(0, Math.min(COLS - 2, cx)); p.y = Math.abs(cy - 28.5) < Math.abs(cy - 40.5) ? 28 : 40; }
+  if (p.type === 'bridge'){ p.x = Math.max(0, Math.min(COLS - 2, cx)); p.y = Math.abs(cy - 29) < Math.abs(cy - 40) ? 28 : 39; }
   else { p.x = Math.max(0, Math.min(COLS - p.w, cx - Math.floor((p.w - 1) / 2))); p.y = Math.max(0, Math.min(ROWS - p.h, cy - Math.floor((p.h - 1) / 2))); }
   const ok = canPlace(ME, p.type, p.x, p.y, p.w, p.h);
   $('placeTxt').textContent = ok ? (canAfford(ME, SDEF[p.type].cost) ? '✔ موقع مناسب — اضغط «ابنِ»' : 'موارد غير كافية') : '✖ لا يمكن البناء هنا';
@@ -3214,10 +3307,10 @@ const HOWTO = `<details><summary>📜 طريقة اللعب</summary><ul>
 <li>الهدف: دمّر <b>حصن</b> العدو لتستولي على قلعته قبل أن يفعل بك المثل.</li>
 <li>الميدان ٧٠×٥٠: أرضك وقلعتك ← خندق ← <b>أرض محايدة</b> ← خندق ← أرض العدو وقلعته.</li>
 <li>كل قلعة يحيط بها سور من الجهات الأربع، بأبراج في زواياها وبوابات أمامية وخلفية وجانبية؛ والأرض المكشوفة حولها تسمح بالالتفاف ومهاجمتها من أي جهة.</li>
-<li>تفقّد فجوات سورك في كل الجهات وسدّها، وضع رماتك على الأسوار الجانبية والخلفية أيضاً.</li>
+<li>تفقّد سورك في كل الجهات وأعد بناء ما يتهدّم منه، وضع رماتك على الأسوار الجانبية والخلفية أيضاً.</li>
 <li>اسحب بإصبع للتنقل، وقرّب أو بعّد بإصبعين (أو ＋ －). زر 🏰 يعيدك إلى قلعتك، وزر 📍 يأخذك إلى موقع الهجوم.</li>
 <li>الأرض المحايدة يبني فيها الطرفان، ومواقعها الغنية تنتج ×2.2. احمِ ما تبنيه هناك!</li>
-<li>المنجنيق لا يعبر الخندق إلا فوق جسر مكتمل (عرضه مربعان): ابنِ جسراً أو «معمل المنجنيق» في الأرض المحايدة ليصل مداه إلى السور الأمامي لقلعة العدو.</li>
+<li>لا أحد يعبر الخندق إلا فوق جسر مكتمل (٢×٣)، والمنجنيق أيضاً: ابنِ جسراً أو «معمل المنجنيق» في الأرض المحايدة ليصل مداه إلى السور الأمامي لقلعة العدو.</li>
 <li>كل بناء أو إصلاح أو هدم ينفذه جندي يقف بجانبه؛ يُرسل أقرب جندي متاح تلقائياً.</li>
 <li>🪓 «هدم» في تبويب البناء يزيل منجماً أو معملاً لك ويعيد نصف تكلفته.</li>
 <li>المس جنودك لتحديدهم، ثم المس مكاناً للتحرك أو عدواً للهجوم.</li>
