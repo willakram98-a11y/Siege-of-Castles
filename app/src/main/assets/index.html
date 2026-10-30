@@ -647,6 +647,14 @@ const R3 = (function(){
       }
     }
   }
+  function setGhostShape(w, h){
+    const G3 = ghost.g; while (G3.children.length) G3.remove(G3.children[0]);
+    const quad = (x, z, sw, sh, m) => { const q = new T3.Mesh(new T3.PlaneGeometry(sw, sh), m); q.rotation.x = -Math.PI / 2; q.position.set(x, 0, z); q.renderOrder = 999; G3.add(q); };
+    for (let dz = 0; dz < h; dz++) for (let dx = 0; dx < w; dx++) quad(dx + .5, dz + .5, .84, .84, ghost.fill);
+    const t = .07;
+    quad(w / 2, t / 2, w, t, ghost.edge); quad(w / 2, h - t / 2, w, t, ghost.edge);
+    quad(t / 2, h / 2, t, h - 2 * t, ghost.edge); quad(w - t / 2, h / 2, t, h - 2 * t, ghost.edge);
+  }
   function animWater(t){
     for (const w of water){
       const a = w.g.attributes.position, B = w.base;
@@ -737,8 +745,10 @@ const R3 = (function(){
       pools.ring = new Pool(rg, new T3.MeshBasicMaterial({color:'#ffd23f', transparent:true, opacity:.95, depthWrite:false}), {cap:32, cast:false});
       const cg = new T3.CircleGeometry(.42, 16); cg.rotateX(-Math.PI / 2);
       pools.blob = new Pool(cg, new T3.MeshBasicMaterial({color:'#000', transparent:true, opacity:.22, depthWrite:false}), {cap:64, cast:false}); }
-    ghost = new T3.Mesh(new T3.BoxGeometry(1, 1, 1), new T3.MeshBasicMaterial({color:'#22c55e', transparent:true, opacity:.42, depthWrite:false}));
-    ghost.visible = false; scene.add(ghost);
+    // موضع البناء: رقعة مسطّحة على الأرض، مربع لكل خانة سيُبنى عليها، مع إطار حولها (تُرسم فوق كل شيء)
+    const gm = (o) => new T3.MeshBasicMaterial({color:'#22c55e', transparent:true, opacity:o, depthWrite:false, depthTest:false});
+    ghost = {g:new T3.Group(), fill:gm(.5), edge:gm(.95), key:''};
+    ghost.g.visible = false; scene.add(ghost.g);
     ok = true;
     setQuality(q);
     return true;
@@ -932,10 +942,11 @@ const R3 = (function(){
     // شبح البناء
     if (typeof placing !== 'undefined' && placing && placing.x != null && G){
       const okp = canPlace(ME, placing.type, placing.x, placing.y, placing.w, placing.h) && canAfford(ME, SDEF[placing.type].cost);
-      const h = Math.max(.3, (SH[placing.type] || 1) * .6), y0 = placing.type === 'bridge' ? -.2 : 0;
-      ghost.visible = true; ghost.material.color.set(okp ? '#22c55e' : '#ef4444');
-      ghost.position.set(placing.x + placing.w / 2, y0 + h / 2, placing.y + placing.h / 2); ghost.scale.set(placing.w - .04, h, placing.h - .04);
-    } else ghost.visible = false;
+      const w = placing.w, h = placing.h, key = w + 'x' + h;
+      if (ghost.key !== key){ ghost.key = key; setGhostShape(w, h); }
+      ghost.fill.color.set(okp ? '#22c55e' : '#ef4444'); ghost.edge.color.set(okp ? '#bbf7d0' : '#fecaca');
+      ghost.g.visible = true; ghost.g.position.set(placing.x, placing.type === 'bridge' ? WATER_Y + .1 : .03, placing.y);
+    } else ghost.g.visible = false;
     renderer.render(scene, cam);
   }
   return {K, HC, SH, UH, info:() => renderer && renderer.info.render, init, setQuality, resize, render, structTop, unitEl, ready:() => ok, active:() => ok && canvas && canvas.style.display !== 'none'};
