@@ -1217,7 +1217,7 @@ function makeUnit(type, team, x, y){
   const d = UDEF[type];
   const u = {kind:'u', id:G.nid++, type, team, hp:d.hp, maxHp:d.hp, size:d.size, cx:x, cy:y, px:x, py:y, nx:x, ny:y,
              moving:false, path:[], pathTag:null, repathT:0, cd:0, order:{type:'idle', hx:x, hy:y},
-             blockedT:0, avoid:false, obstacle:null, tgt:null, fire:0, dead:false, hitT:0, fails:0, lunge:0};
+             blockedT:0, holdT:0, fightT:-9, avoid:false, obstacle:null, tgt:null, fire:0, dead:false, hitT:0, fails:0, lunge:0};
   G.units.set(u.id, u);
   occupy(u, x, y);
   return u;
@@ -1239,7 +1239,7 @@ function killUnit(u){
   if (selection.delete(u)) refreshSel();
 }
 function setOrder(u, o){
-  u.order = o; u.path = []; u.pathTag = null; u.repathT = 0; u.obstacle = null; u.blockedT = 0; u.tgt = null; u.fails = 0;
+  u.order = o; u.path = []; u.pathTag = null; u.repathT = 0; u.obstacle = null; u.blockedT = 0; u.holdT = 0; u.tgt = null; u.fails = 0;
 }
 function setIdle(u){ setOrder(u, {type:'idle', hx:u.moving ? u.nx : u.cx, hy:u.moving ? u.ny : u.cy}); }
 function orderWork(u, kind, s){ if (u.type === 'trebuchet') return; setOrder(u, {type:kind, target:s}); }
@@ -1299,7 +1299,7 @@ function footCost(u, ax, ay, breach, avoid){
   }
   return m;
 }
-function findPath(u, goal, breach, avoid, hf){
+function findPath(u, goal, breach, avoid, hf, maxD){
   if (goal(u.cx, u.cy)) return [];
   const H0 = hf || (() => 0);
   _dist.fill(Infinity); _prev.fill(-1);
@@ -1317,6 +1317,7 @@ function findPath(u, goal, breach, avoid, hf){
   while (hf_.length){
     const [i, d] = pop();
     if (d > _dist[i]) continue;
+    if (maxD && d > maxD) return null;
     const x = i % COLS, y = (i / COLS) | 0;
     if (i !== st && goal(x, y)){
       const path = []; let k = i;
@@ -1361,6 +1362,8 @@ function canReachRows(u, ty0, ty1, rg){
   return bands.some(([a, b]) => Math.max(0, ty0 - b, a - ty1) <= slack);
 }
 function ensurePath(u, tag, goal, breach, every, hf, rows){
+  u.goal = goal; u.goalB = breach; u.goalH = hf;
+  if (u.holdT > 0 && u.pathTag === tag) return 'keep';
   if (u.pathTag !== tag || u.repathT <= 0){
     if (rows && !canReachRows(u, rows[0], rows[1], rows[2])){ u.path = []; u.pathTag = tag; u.repathT = every * (0.85 + Math.random() * .3); return 'none'; }
     const p = findPath(u, goal, breach, u.avoid, hf);
@@ -1413,6 +1416,7 @@ function slowAt(u, ax, ay){
 }
 function advanceMove(u, dt){
   let spd = UDEF[u.type].speed;
+  if (u.order.type === 'move' && u.order.spd) spd = Math.min(spd, u.order.spd);
   if (slowAt(u, u.nx, u.ny)) spd *= .33;
   const dx = u.nx - u.px, dy = u.ny - u.py, L = Math.hypot(dx, dy), st = spd * dt;
   if (st >= L){
@@ -1428,7 +1432,7 @@ function advanceMove(u, dt){
   } else { u.px += dx / L * st; u.py += dy / L * st; }
 }
 function shove(f, by){
-  if (f.size !== 1 || f.moving || f.dead) return;
+  if (f.size !== 1 || f.moving || f.dead || inLine(f)) return;
   const next = by.path[1];
   for (const [dx, dy] of DIRS){
     const X = f.cx + dx, Y = f.cy + dy;
@@ -1449,7 +1453,7 @@ function trySwap(u, f){
   const [ux, uy] = u.path[0];
   if (ux !== f.cx || uy !== f.cy) return false;
   const mutual = f.path.length && f.path[0][0] === u.cx && f.path[0][1] === u.cy;
-  if (!mutual && u.blockedT < .7) return false;
+  if (!mutual && (u.blockedT < .7 || inLine(f, u))) return false;
   const fx = u.cx, fy = u.cy;
   G.occ[idx(ux, uy)] = u.id; G.occ[idx(fx, fy)] = f.id;
   u.moving = true; u.nx = ux; u.ny = uy; u.path.shift(); u.blockedT = 0;
@@ -1457,12 +1461,33 @@ function trySwap(u, f){
   if (mutual) f.path.shift(); else { f.path = []; f.repathT = 0; if (f.order.type === 'idle'){ f.order.hx = fx; f.order.hy = fy; } }
   return true;
 }
+// صديق «في الصف»: واقف يقاتل، أو واقف في صفّ ينتظر دوره
+function inLine(f, by){ return !f.moving && (G.t - f.fightT < .6 || (f.holdT > 0 && !(by && f.holdBy === by.id))); }
+function footOpen(u, x, y){
+  for (let dy = 0; dy < u.size; dy++) for (let dx = 0; dx < u.size; dx++){ const o = G.occ[idx(x+dx, y+dy)]; if (o && o !== u.id) return false; }
+  return true;
+}
+// كجيوش العصور الوسطى: من يصطدم بظهر صفّ يقاتل يقف خلفه في صفّ ثانٍ،
+// ولا يتقدّم إلا إلى فرجة قريبة حقاً، بدل أن يدور حول الجيش بحثاً عن منفذ
+function holdRank(u, dt){
+  u.blockedT += dt;
+  if (u.blockedT < .5) return;
+  u.blockedT = 0;
+  const g = u.goal;
+  if (g){
+    const cap = Math.min(u.path.length, 8) + 5;
+    const alt = findPath(u, (x, y) => g(x, y) && footOpen(u, x, y), u.goalB, true, u.goalH, cap);
+    if (alt && alt.length && footOpen(u, alt[0][0], alt[0][1]) && alt.length <= cap){ u.path = alt; u.repathT = 1.5; return; }
+  }
+  u.path = []; u.holdT = 1 + Math.random() * .6;
+}
 function stepAlong(u, dt){
   if (u.moving || !u.path.length) return;
   const r = tryStep(u);
   if (r === 'ok'){ u.blockedT = 0; return; }
   if (r === 'fail') return;
   if (r.obs){ u.obstacle = r.obs; u.blockedT = 0; return; }
+  if (u.order.type !== 'move' && u.pathTag !== 'shove' && inLine(r.friend, u) && r.friend.team === u.team){ u.holdBy = r.friend.id; holdRank(u, dt); return; }
   const prev = u.blockedT;
   u.blockedT += dt;
   if (r.friend.order.type === 'idle' && !r.friend.moving && u.blockedT > .3) shove(r.friend, u);
@@ -1520,6 +1545,7 @@ function pickTarget(u, radius){
   return u.tgt;
 }
 function attackIfReady(u, t){
+  u.fightT = G.t;
   if (u.cd > 0 || t.dead) return;
   const d = UDEF[u.type];
   u.cd = d.cd;
@@ -1573,6 +1599,7 @@ function chase(u, t, dt, breach){
 function updateUnit(u, dt){
   if (u.cd > 0) u.cd -= dt;
   if (u.repathT > 0) u.repathT -= dt;
+  if (u.holdT > 0) u.holdT -= dt;
   if (u.fire > 0) u.fire -= dt;
   if (u.lunge > 0) u.lunge -= dt;
   if (u.moving){ advanceMove(u, dt); if (u.moving) return; }
@@ -1612,6 +1639,10 @@ function doMove(u, dt){
   if (goal(u.cx, u.cy)){ setIdle(u); return; }
   const r = ensurePath(u, 'mv', goal, false, 3, (x, y) => Math.max(0, Math.hypot(x - o.x, y - o.y) - (treb ? 1.5 : 0)), [o.y, o.y, 1.5]);
   if (r === 'none'){ if (++u.fails >= 3){ setIdle(u); return; } }
+  if (!u.moving && u.path.length && u.path.length <= 5){
+    const [px, py] = u.path[0], f = G.units.get(G.occ[idx(px, py)]);
+    if (f && f !== u && f.team === u.team && inLine(f)){ setIdle(u); return; }
+  }
   stepAlong(u, dt);
   if (u.blockedT > 2 && u.path.length <= 1) setIdle(u);
 }
@@ -2617,18 +2648,55 @@ function cellOkFor(u, x, y, sel){
   if (isMoat(y)) return false;
   return true;
 }
+// تحريك مجموعة في تشكيل كجيوش العصور الوسطى: صفوف متراصّة متعامدة مع اتجاه المسير،
+// المشاة والفرسان في الصفوف الأمامية والرماة خلفهم والمجانيق في المؤخرة، ويسير الجنود معاً بسرعة أبطئهم
 function moveGroup(units, tx, ty){
-  const sel = new Set(units.map(u => u.id)), cands = [];
-  const R = Math.ceil(Math.sqrt(units.length)) + 2;
-  for (let y = Math.max(0, ty - R); y <= Math.min(ROWS - 1, ty + R); y++) for (let x = Math.max(0, tx - R); x <= Math.min(COLS - 1, tx + R); x++) cands.push({x, y, d:Math.hypot(x - tx, y - ty)});
-  cands.sort((a, b) => a.d - b.d);
-  const used = new Set();
-  const sorted = [...units].sort((a, b) => (b.type === 'archer') - (a.type === 'archer') || Math.hypot(a.cx - tx, a.cy - ty) - Math.hypot(b.cx - tx, b.cy - ty));
-  for (const u of sorted){
-    if (u.type === 'trebuchet'){ setOrder(u, {type:'move', x:Math.min(COLS - 2, tx), y:Math.min(ROWS - 2, ty)}); continue; }
-    const c = cands.find(c => !used.has(c.x + ',' + c.y) && cellOkFor(u, c.x, c.y, sel));
-    if (c){ used.add(c.x + ',' + c.y); setOrder(u, {type:'move', x:c.x, y:c.y}); }
+  const sel = new Set(units.map(u => u.id));
+  const inf = units.filter(u => u.type !== 'trebuchet'), trebs = units.filter(u => u.type === 'trebuchet');
+  let gx = 0, gy = 0; units.forEach(u => { gx += u.cx; gy += u.cy; }); gx /= units.length; gy /= units.length;
+  // الاتجاه: محور الحركة الغالب (الخريطة طولية، فغالباً شمال/جنوب)
+  const ddx = tx - gx, ddy = ty - gy, vert = Math.abs(ddy) >= Math.abs(ddx);
+  const fx = vert ? 0 : Math.sign(ddx) || 1, fy = vert ? Math.sign(ddy) || 1 : 0;   // الأمام
+  const lx = -fy, ly = fx;                                                            // الجانب
+  const n = inf.length;
+  const width = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * 2.2))));
+  const rankOf = u => u.type === 'archer' ? 2 : u.type === 'knight' ? 1 : 0;
+  const order = [...inf].sort((a, b) => rankOf(a) - rankOf(b));
+  const used = new Set(), slots = [];
+  const ok = (u, x, y) => inb(x, y) && !used.has(x + ',' + y) && cellOkFor(u, x, y, sel);
+  // أقرب خانة صالحة لخانة التشكيل (إن وقعت على سور أو ماء)
+  const near = (u, x, y) => {
+    if (ok(u, x, y)) return [x, y];
+    for (let r = 1; r <= 4; r++){ let best = null, bd = 1e9;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++){
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const X = x + dx, Y = y + dy; if (!ok(u, X, Y)) continue;
+        const back = (dx * fx + dy * fy) > 0 ? .5 : 0, d = Math.hypot(dx, dy) + back;
+        if (d < bd){ bd = d; best = [X, Y]; } }
+      if (best) return best; }
+    return null;
+  };
+  let speed = Infinity; inf.forEach(u => { speed = Math.min(speed, UDEF[u.type].speed); });
+  if (inf.length < 2) speed = 0;
+  let rank = 0;
+  for (let i = 0; i < order.length; rank++){
+    const row = order.slice(i, i + width); i += row.length;
+    const half = (row.length - 1) / 2;
+    // يُرتَّب جنود الصف حسب موقعهم الجانبي الحالي كي لا تتقاطع مساراتهم
+    row.sort((a, b) => (a.cx * lx + a.cy * ly) - (b.cx * lx + b.cy * ly));
+    row.forEach((u, k) => {
+      const off = Math.round(k - half);
+      const c = near(u, tx + lx * off - fx * rank, ty + ly * off - fy * rank);
+      if (!c) return;
+      used.add(c[0] + ',' + c[1]);
+      setOrder(u, {type:'move', x:c[0], y:c[1], spd:speed || 0});
+    });
   }
+  trebs.forEach((u, k) => {
+    const off = (k - (trebs.length - 1) / 2) * 3;
+    const x = Math.max(0, Math.min(COLS - 2, Math.round(tx + lx * off - fx * (rank + 1)))), y = Math.max(0, Math.min(ROWS - 2, Math.round(ty + ly * off - fy * (rank + 1))));
+    setOrder(u, {type:'move', x, y});
+  });
 }
 function askDemolish(s){
   placing = null; pendingDemo = s;
@@ -3301,7 +3369,7 @@ const HOWTO = `<details><summary>📜 طريقة اللعب</summary><ul>
 <li>لا أحد يعبر الخندق إلا فوق جسر مكتمل (٢×٣)، والمنجنيق أيضاً: ابنِ جسراً أو «معمل المنجنيق» في الأرض المحايدة ليصل مداه إلى السور الأمامي لقلعة العدو.</li>
 <li>البناء فوري لحظة الموافقة على المكان، أما الإصلاح والهدم فينفذهما جندي يقف بجانب المبنى.</li>
 <li>🪓 «هدم» في تبويب البناء يزيل منجماً أو معملاً لك ويعيد نصف تكلفته.</li>
-<li>المس جنودك لتحديدهم، ثم المس مكاناً للتحرك أو عدواً للهجوم.</li>
+<li>المس جنودك لتحديدهم، ثم المس مكاناً للتحرك أو عدواً للهجوم. يسير الجيش في تشكيل منظّم: المشاة في الصف الأول، ثم الفرسان، ثم الرماة، والمجانيق في المؤخرة. وإذا التحم الصف الأول بالعدو تقف الصفوف الخلفية في أماكنها وتنتظر دورها.</li>
 <li>المشاة للبوابات، الرماة على الأسوار، الفرسان في الميدان، والجسر طريق العبور للجميع… حتى لعدوك!</li>
 <li>👥 اللعب الثنائي: يكون كل لاعب على هاتفه، وتظهر قلعة كل لاعب في أسفل شاشته.</li></ul></details>`;
 function showMenu(){
