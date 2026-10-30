@@ -602,7 +602,7 @@ const R3 = (function(){
     const T = y < ROWS / 2 ? 1 : 0, dep = DEP[idx(x, y)];
     if (isRing(T, x, y)) return '#cdbfa6';
     if (inCastle(T, x, y, 0)) return ch ? '#ead9bb' : '#e2cfae';
-    const road = inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 && y < 47) : (y > 22 && y <= 27)));
+    const road = inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 + SH && y < 47 + SH) : (y > 22 && y <= 27)));
     if (road) return n < .5 ? (ch ? '#f4cf9e' : '#efc791') : (ch ? '#f1ca95' : '#ebc289');
     if (dep === 'wood') return ch ? '#78b548' : '#71ad43';
     if (dep === 'stone') return ch ? '#c9c9b4' : '#c1c1ab';
@@ -945,22 +945,25 @@ const R3 = (function(){
 'use strict';
 const HEADLESS = typeof document === 'undefined';
 /* ================== الخريطة ==================
-   الصفوف (من الأعلى): أرض العدو 0-27 وفيها قلعته | خندق 28-30 | الأرض المحايدة 31-38 | خندق 39-41 | أرضك 42-69 وفيها قلعتك
+   الصفوف (من الأعلى): أرض العدو 0-27 وفيها قلعته | خندق 28-30 | الأرض المحايدة 31-88 | خندق 89-91 | أرضك 92-119 وفيها قلعتك
    كل قلعة سور كامل يحيط بالحصن من الجهات الأربع، بأبراج في الزوايا وبوابات في كل جهة، وحولها أرض مكشوفة */
-const COLS = 50, ROWS = 70;   // خلف كل قلعة 13 صفاً من الأرض المفتوحة
-const MOAT_TOPS = [28, 39], MOAT_W = 3;   // لا يُعبر الخندق إلا فوق جسر مكتمل
-const isMoat = y => (y >= 28 && y <= 30) || (y >= 39 && y <= 41);
-const isNeutral = y => y >= 31 && y <= 38;
+const NEUT = 58, SH = NEUT - 8;   // صفوف الأرض المحايدة، وSH: إزاحة أرضك عن التصميم الأصلي (٨ صفوف محايدة)
+const COLS = 50, ROWS = 62 + NEUT;   // خلف كل قلعة 13 صفاً من الأرض المفتوحة
+const N0 = 31, N1 = 30 + NEUT;       // أول وآخر صف محايد
+const MOAT_TOPS = [28, N1 + 1], MOAT_W = 3;   // لا يُعبر الخندق إلا فوق جسر مكتمل
+const isMoat = y => (y >= 28 && y <= 30) || (y > N1 && y <= N1 + 3);
+const isNeutral = y => y >= N0 && y <= N1;
 const KEEP_W = 6, KEEP_H = 3, MIDX = 25;
 const idx = (x, y) => y * COLS + x;
 /* هندسة القلعة (معرّفة لقلعتك، وقلعة العدو صورتها المعكوسة تماماً) */
 const CASTLE = (function(){
   const mp = ([x, y]) => [COLS - 1 - x, ROWS - 1 - y];
   const mr = ([x, y], w, h) => [COLS - x - w, ROWS - y - h];
-  const base = {box:{x0:19, y0:48, x1:30, y1:56},
-    gates:[[24,48],[25,48],[24,56],[25,56],[19,52],[30,52]],
-    towers:[[18,47],[30,47],[18,56],[30,56]],
-    keep:[22,51]};
+  const Y = y => y + SH;
+  const base = {box:{x0:19, y0:Y(48), x1:30, y1:Y(56)},
+    gates:[[24,Y(48)],[25,Y(48)],[24,Y(56)],[25,Y(56)],[19,Y(52)],[30,Y(52)]],
+    towers:[[18,Y(47)],[30,Y(47)],[18,Y(56)],[30,Y(56)]],
+    keep:[22,Y(51)]};
   const build = (b, T) => {
     const c = {T, box:b.box, gates:b.gates, towers:b.towers, keep:b.keep, ring:[], ringSet:new Set(), gateSet:new Set()};
     const {x0, y0, x1, y1} = b.box;
@@ -979,11 +982,11 @@ const isRing = (T, x, y) => CASTLE[T].ringSet.has(x + ',' + y);
 const inCastle = (T, x, y, pad) => { const b = CASTLE[T].box; pad = pad || 0; return x >= b.x0 - pad && x <= b.x1 + pad && y >= b.y0 - pad && y <= b.y1 + pad; };
 const inb = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
 const TEAM = [
-  {color:'#3b82f6', dark:'#1e3a8a', light:'#bfdbfe', rows:[42,69], front:42, nFront:32, homeMoat:39, farMoat:28},
-  {color:'#e5484d', dark:'#7f1d1d', light:'#fecaca', rows:[0,27],  front:26, nFront:36, homeMoat:28, farMoat:39}
+  {color:'#3b82f6', dark:'#1e3a8a', light:'#bfdbfe', rows:[42+SH,ROWS-1], front:42+SH, nFront:32, homeMoat:N1+1, farMoat:28},
+  {color:'#e5484d', dark:'#7f1d1d', light:'#fecaca', rows:[0,27],  front:26, nFront:36+SH, homeMoat:28, farMoat:N1+1}
 ];
-const depthOwn = (T, cy) => T === 0 ? cy - 42 : 28 - cy;
-const depthN = (T, cy) => T === 0 ? 39 - cy : cy - 31;
+const depthOwn = (T, cy) => T === 0 ? cy - 42 - SH : 28 - cy;
+const depthN = (T, cy) => T === 0 ? N1 + 1 - cy : cy - N0;
 const RES = ['gold','iron','wood','stone'];
 const RICON = {gold:'🪙', iron:'🔩', wood:'🪵', stone:'🪨'};
 const RNAME = {gold:'ذهب', iron:'حديد', wood:'خشب', stone:'حجر'};
@@ -1025,13 +1028,17 @@ const DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 /* رواسب الموارد: متناظرة تماماً للفريقين، والمحايدة منها «غنية» */
 const DEP = new Array(COLS*ROWS).fill(null);
 (function(){
-  const rect = (k, x0, y0, x1, y1) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){ DEP[idx(x,y)] = k; DEP[idx(COLS-1-x, ROWS-1-y)] = k; } };
+  // الإحداثيات مكتوبة بالتصميم الأصلي (٧٠ صفاً) وتُزاح إلى نصف الخريطة السفلي، ثم تُعكس للعدو
+  const rect = (k, x0, y0, x1, y1, raw) => { const o = raw ? 0 : SH;
+    for (let y = y0 + o; y <= y1 + o; y++) for (let x = x0; x <= x1; x++){ DEP[idx(x,y)] = k; DEP[idx(COLS-1-x, ROWS-1-y)] = k; } };
   rect('wood', 0,46, 2,49); rect('wood', 46,43, 49,45); rect('wood', 10,56, 12,58);
   rect('stone', 40,52, 42,53); rect('stone', 5,43, 7,44);
   rect('gold', 13,48, 14,49); rect('gold', 35,55, 36,56);
   rect('iron', 37,44, 38,45); rect('iron', 6,53, 7,54);
-  // الأرض المحايدة
-  rect('gold', 23,34, 26,35); rect('iron', 10,36, 11,37); rect('stone', 3,31, 5,32); rect('wood', 16,37, 18,38);
+  // الأرض المحايدة: رواسب قرب كل خندق، وأغنى منها في الوسط (صفوف فعلية)
+  rect('gold', 23,N1-4, 26,N1-3, 1); rect('iron', 10,N1-2, 11,N1-1, 1); rect('stone', 3,N1-7, 5,N1-6, 1); rect('wood', 16,N1-1, 18,N1, 1);
+  rect('wood', 2,N1-16, 5,N1-14, 1); rect('stone', 42,N1-12, 44,N1-11, 1); rect('iron', 33,N1-20, 34,N1-19, 1);
+  rect('gold', 12,N1-26, 15,N1-25, 1); rect('stone', 30,N1-24, 32,N1-23, 1);
 })();
 
 /* ================== الحالة ================== */
@@ -1341,7 +1348,7 @@ function findPath(u, goal, breach, avoid, hf, maxD){
 }
 // الخنادق تقسم الميدان إلى ثلاث مناطق لا يصل بينها إلا جسر مكتمل.
 // فحص سريع: إن كان الهدف في منطقة لا تصلها الوحدة فلا داعي للبحث عن طريق في الخريطة كلها.
-const ZONES = [[0, 27], [31, 38], [42, ROWS - 1]];
+const ZONES = [[0, 27], [N0, N1], [N1 + 4, ROWS - 1]];
 let _zt = -1, _zb = [false, false];
 function moatBridged(k){
   if (_zt !== G.t){ _zt = G.t; _zb = [false, false];
@@ -1351,13 +1358,13 @@ function moatBridged(k){
 function canReachRows(u, ty0, ty1, rg){
   const z = [false, false, false];
   for (let y = u.cy; y < u.cy + u.size; y++){
-    if (y < 28) z[0] = true; else if (y <= 30){ z[0] = z[1] = true; } else if (y <= 38) z[1] = true; else if (y <= 41){ z[1] = z[2] = true; } else z[2] = true;
+    if (y < 28) z[0] = true; else if (y <= 30){ z[0] = z[1] = true; } else if (y <= N1) z[1] = true; else if (y <= N1 + 3){ z[1] = z[2] = true; } else z[2] = true;
   }
   const b0 = moatBridged(0), b1 = moatBridged(1);
   for (let k = 0; k < 2; k++){ if (b0 && (z[0] || z[1])) z[0] = z[1] = true; if (b1 && (z[1] || z[2])) z[1] = z[2] = true; }
   const bands = ZONES.filter((_, i) => z[i]);
   if (b0 && (z[0] || z[1])) bands.push([28, 30]);
-  if (b1 && (z[1] || z[2])) bands.push([39, 41]);
+  if (b1 && (z[1] || z[2])) bands.push([N1 + 1, N1 + 3]);
   const slack = rg + u.size + 1;
   return bands.some(([a, b]) => Math.max(0, ty0 - b, a - ty1) <= slack);
 }
@@ -1889,7 +1896,7 @@ function freeWallCell(T, u, taken){
 function findSpot(T, type, neutral){
   const sd = SDEF[type], tm = TEAM[T];
   const opts = [[sd.w, sd.h]]; if (sd.w !== sd.h) opts.push([sd.h, sd.w]);
-  const rows = neutral ? [31, 38] : tm.rows;
+  const rows = neutral ? [N0, N1] : tm.rows;
   let best = null, bs = -1e9;
   for (const [w, h] of opts) for (let y = rows[0]; y <= rows[1] - h + 1; y++) for (let x = 0; x <= COLS - w; x++){
     if (!canPlace(T, type, x, y, w, h)) continue;
@@ -1897,7 +1904,7 @@ function findSpot(T, type, neutral){
     for (let dy = 0; dy < h && !bad; dy++) for (let dx = 0; dx < w; dx++){
       const X = x+dx, Y = y+dy;
       if (!neutral && (inCastle(T, X, Y, 2) || (X >= 23 && X <= 26 && (T === 0 ? Y < CASTLE[T].box.y0 : Y > CASTLE[T].box.y1)))) { bad = true; break; }
-      if (neutral && (Y === 31 || Y === 38) && X >= 18 && X <= 31 && type !== 'tower') { bad = true; break; }
+      if (neutral && (Y === N0 || Y === N1) && X >= 18 && X <= 31 && type !== 'tower') { bad = true; break; }
       if (sd.dep && DEP[idx(X, Y)] === sd.dep) m++;
     }
     if (bad) continue;
@@ -2052,7 +2059,7 @@ function aiThink(ai){
     if (smartRally){
       // نقطة تجمّع خارج مدى رماة السور وأبراجه، ثم هجوم جماعي
       // التجمّع الأمامي في وسط الأرض المحايدة حتى لا يسدّ الجنود مدخل الجسر
-      const fy = E === 0 ? 35 : 34, by = E === 0 ? b.y1 + 8 : b.y0 - 8;
+      const fy = E === 0 ? 35 + SH : 34, by = E === 0 ? b.y1 + 8 : b.y0 - 8;
       rp = {front:[EC.cx, fy], left:[b.x0 - 8, EC.cy], right:[b.x1 + 8, EC.cy], back:[EC.cx, by]}[side];
     } else {
       const fy = E === 0 ? b.y0 - 3 : b.y1 + 3, by = E === 0 ? b.y1 + 2 : b.y0 - 2;
@@ -2133,7 +2140,7 @@ function buildTerrain(){
     const X = x * C, Y = y * C, ch = (x + y) % 2;
     let col, grass = false;
     const T = y < ROWS / 2 ? 1 : 0, inside = inCastle(T, x, y, 0) && !isRing(T, x, y);
-    const road = !inCastle(T, x, y, 0) && (inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 && y < 47) : (y > 22 && y <= 27))));
+    const road = !inCastle(T, x, y, 0) && (inCastle(T, x, y, 1) || ((x === 24 || x === 25) && (T === 0 ? (y >= 42 + SH && y < 47 + SH) : (y > 22 && y <= 27))));
     if (isMoat(y)) col = '#245a85';
     else if (isRing(T, x, y)) col = '#6b5b45';
     else if (inside) col = ch ? '#675e55' : '#5f574e';
@@ -2144,11 +2151,11 @@ function buildTerrain(){
     if (grass || road) for (let k = 0; k < 4; k++){ g.fillStyle = rnd() < .5 ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.07)'; g.fillRect(X + rnd()*C, Y + rnd()*C, 3, 4); }
     if (inside){ g.strokeStyle = 'rgba(0,0,0,.18)'; g.strokeRect(X + .5, Y + .5, C - 1, C - 1); }
   }
-  g.fillStyle = 'rgba(59,130,246,.07)'; g.fillRect(0, 42 * C, COLS * C, 28 * C);
+  g.fillStyle = 'rgba(59,130,246,.07)'; g.fillRect(0, (N1 + 4) * C, COLS * C, 28 * C);
   g.fillStyle = 'rgba(239,68,68,.07)'; g.fillRect(0, 0, COLS * C, 28 * C);
   g.strokeStyle = 'rgba(0,0,0,.13)'; g.lineWidth = 1; g.beginPath();
   for (let x = 1; x < COLS; x++){
-    for (const [a, b] of [[0, 28], [31, 39], [42, ROWS]]){ g.moveTo(x * C + .5, a * C); g.lineTo(x * C + .5, b * C); }
+    for (const [a, b] of [[0, 28], [N0, N1 + 1], [N1 + 4, ROWS]]){ g.moveTo(x * C + .5, a * C); g.lineTo(x * C + .5, b * C); }
   }
   for (let y = 1; y < ROWS; y++){ if (isMoat(y) || isMoat(y - 1)) continue; g.moveTo(0, y * C + .5); g.lineTo(COLS * C, y * C + .5); }
   g.stroke();
@@ -2159,7 +2166,7 @@ function buildTerrain(){
     g.fillStyle = '#3d2f20'; g.fillRect(0, my * C - 4, COLS * C, 5); g.fillRect(0, (my + MOAT_W) * C - 1, COLS * C, 5);
   }
   g.strokeStyle = 'rgba(250,204,21,.35)'; g.setLineDash([10, 8]); g.lineWidth = 2;
-  g.strokeRect(2, 31 * C + 2, COLS * C - 4, 8 * C - 4); g.setLineDash([]);
+  g.strokeRect(2, N0 * C + 2, COLS * C - 4, NEUT * C - 4); g.setLineDash([]);
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++){
     const k = DEP[idx(x, y)]; if (!k) continue;
     const X = x * C, Y = y * C;
@@ -3364,7 +3371,7 @@ function showOv(html){ stopScan(); $('ovBox').innerHTML = html; $('ov').classLis
 function hideOv(){ stopScan(); $('ov').classList.add('hidden'); }
 const HOWTO = `<details><summary>📜 طريقة اللعب</summary><ul>
 <li>الهدف: دمّر <b>حصن</b> العدو لتستولي على قلعته قبل أن يفعل بك المثل.</li>
-<li>الميدان ٧٠×٥٠: أرضك وقلعتك ← خندق ← <b>أرض محايدة</b> ← خندق ← أرض العدو وقلعته.</li>
+<li>الميدان ١٢٠×٥٠: أرضك وقلعتك ← خندق ← <b>أرض محايدة واسعة (٥٨ صفاً)</b> ← خندق ← أرض العدو وقلعته.</li>
 <li>كل قلعة يحيط بها سور من الجهات الأربع، بأبراج في زواياها وبوابات أمامية وخلفية وجانبية؛ والأرض المكشوفة حولها تسمح بالالتفاف ومهاجمتها من أي جهة.</li>
 <li>تفقّد سورك في كل الجهات وأعد بناء ما يتهدّم منه، وضع رماتك على الأسوار الجانبية والخلفية أيضاً.</li>
 <li>اسحب بإصبع للتنقل، وقرّب أو بعّد بإصبعين (أو ＋ －). زر 🏰 يعيدك إلى قلعتك، وزر 📍 يأخذك إلى موقع الهجوم.</li>
