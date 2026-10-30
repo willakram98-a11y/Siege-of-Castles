@@ -1093,12 +1093,13 @@ function onOwnWall(u){
   const s = structAt(u.cx, u.cy);
   return !!(s && s.team === u.team && s.type === 'wall' && s.built);
 }
+const RES_RATE = .5;   // تحصيل الموارد بنصف المعدّل الأصلي
 function rates(T){
-  const r = {gold:.8, iron:0, wood:0, stone:0};
+  const r = {gold:.8 * RES_RATE, iron:0, wood:0, stone:0};
   for (const s of G.structs.values()){
     if (s.team !== T || !s.built || s.demo) continue;
     const p = SDEF[s.type].prod; if (!p) continue;
-    for (const k in p) r[k] += p[k] * (s.bonus || 1);
+    for (const k in p) r[k] += p[k] * (s.bonus || 1) * RES_RATE;
   }
   const m = G.ai[T] ? G.ai[T].d.inc : 1;
   for (const k in r) r[k] *= m;
@@ -1142,14 +1143,13 @@ function canPlace(T, type, x, y, w, h){
   }
   return true;
 }
-function placeStruct(T, type, x, y, w, h, builders){
+function placeStruct(T, type, x, y, w, h){
   if (!canPlace(T, type, x, y, w, h)) return null;
   const c = SDEF[type].cost;
   if (!canAfford(T, c)) return null;
   pay(T, c);
-  const s = addStruct(type, T, x, y, w, h, false);
-  if (builders) builders.forEach(u => orderWork(u, 'build', s));
-  return s;
+  // البناء فوري: يكتمل المبنى لحظة الموافقة على مكانه
+  return addStruct(type, T, x, y, w, h, true);
 }
 function destroyStruct(s, quiet){
   if (s.dead) return;
@@ -1955,16 +1955,7 @@ function aiThink(ai){
     if (bx != null) placeStruct(T, 'bridge', bx, tm.homeMoat, 2, 3);
   } else if (army >= 7 && bridgeBuilt(tm.homeMoat) && !bridgeOn(T, tm.farMoat) && canAfford(T, SDEF.bridge.cost)){
     const bx = (T === 1 ? [29, 20, 35, 14] : [20, 29, 14, 35]).find(x => canPlace(T, 'bridge', x, tm.farMoat, 2, 3));
-    if (bx != null){
-      const near = (u, x, y) => Math.hypot(u.cx - x, u.cy - y);
-      const crew = mine.filter(u => u.type === 'footman' && free(u)).sort((a, b) => near(a, bx, tm.homeMoat) - near(b, bx, tm.homeMoat)).slice(0, 3);
-      placeStruct(T, 'bridge', bx, tm.farMoat, 2, 3, crew);
-    }
-  }
-  // جسر لم يكتمل ولا أحد يبنيه: أرسل له بنّاءً
-  for (const s of ss) if (s.type === 'bridge' && !s.built && !workersOn(s)){
-    const u = mine.filter(u => u.type === 'footman' && free(u)).sort((a, b) => Math.hypot(a.cx - s.x, a.cy - s.y) - Math.hypot(b.cx - s.x, b.cy - s.y))[0];
-    if (u) orderWork(u, 'build', s);
+    if (bx != null) placeStruct(T, 'bridge', bx, tm.farMoat, 2, 3);
   }
   // لا هجوم ولا غارة قبل أن يكتمل جسرا الطريق إلى العدو
   const route = bridgeBuilt(tm.homeMoat) && bridgeBuilt(tm.farMoat);
@@ -2689,11 +2680,8 @@ function cmdPlace(T, c, us){
   const okDims = (c.w === sd.w && c.h === sd.h) || (c.type !== 'bridge' && c.w === sd.h && c.h === sd.w);
   if (!okDims || !canPlace(T, c.type, c.x, c.y, c.w, c.h)){ notify(T, 'الموقع غير صالح'); return; }
   if (!canAfford(T, sd.cost)){ notify(T, missingFor(T, sd.cost)); return; }
-  const builders = us.filter(u => u.type !== 'trebuchet');
-  const s = placeStruct(T, c.type, c.x, c.y, c.w, c.h, builders);
-  if (!s) return;
-  if (!builders.length){ const u = nearestWorker(T, s, true); if (u){ orderWork(u, 'build', s); notify(T, '🔨 بدأ البناء: ' + sd.name); } else notify(T, '⏳ سيبدأ البناء حين يتوفر جندي'); }
-  else notify(T, '🔨 بدأ البناء: ' + sd.name);
+  const s = placeStruct(T, c.type, c.x, c.y, c.w, c.h);
+  if (s) notify(T, '✅ تم بناء: ' + sd.name);
 }
 function cmdRepair(T, s, us){
   if (!s || s.dead || s.team !== T || !s.built || s.hp >= s.maxHp || s.demo) return;
@@ -2898,7 +2886,7 @@ function prodPops(dt){
     if (s.popT <= 0){
       s.popT = 6;
       const k = Object.keys(p)[0];
-      G.fx.push({txt:'+' + Math.round(p[k] * s.bonus * 6) + RICON[k], x:s.x + s.w / 2, y:s.y + (FLIP ? s.h - .3 : .3), vx:0, vy:FLIP ? .5 : -.5, life:1.5, max:1.5});
+      G.fx.push({txt:'+' + Math.round(p[k] * s.bonus * RES_RATE * 6) + RICON[k], x:s.x + s.w / 2, y:s.y + (FLIP ? s.h - .3 : .3), vx:0, vy:FLIP ? .5 : -.5, life:1.5, max:1.5});
     }
   }
 }
@@ -3311,10 +3299,10 @@ const HOWTO = `<details><summary>📜 طريقة اللعب</summary><ul>
 <li>اسحب بإصبع للتنقل، وقرّب أو بعّد بإصبعين (أو ＋ －). زر 🏰 يعيدك إلى قلعتك، وزر 📍 يأخذك إلى موقع الهجوم.</li>
 <li>الأرض المحايدة يبني فيها الطرفان، ومواقعها الغنية تنتج ×2.2. احمِ ما تبنيه هناك!</li>
 <li>لا أحد يعبر الخندق إلا فوق جسر مكتمل (٢×٣)، والمنجنيق أيضاً: ابنِ جسراً أو «معمل المنجنيق» في الأرض المحايدة ليصل مداه إلى السور الأمامي لقلعة العدو.</li>
-<li>كل بناء أو إصلاح أو هدم ينفذه جندي يقف بجانبه؛ يُرسل أقرب جندي متاح تلقائياً.</li>
+<li>البناء فوري لحظة الموافقة على المكان، أما الإصلاح والهدم فينفذهما جندي يقف بجانب المبنى.</li>
 <li>🪓 «هدم» في تبويب البناء يزيل منجماً أو معملاً لك ويعيد نصف تكلفته.</li>
 <li>المس جنودك لتحديدهم، ثم المس مكاناً للتحرك أو عدواً للهجوم.</li>
-<li>المشاة للبوابات، الرماة على الأسوار، الفرسان في الميدان، والجسر يسرّع العبور للجميع… حتى لعدوك!</li>
+<li>المشاة للبوابات، الرماة على الأسوار، الفرسان في الميدان، والجسر طريق العبور للجميع… حتى لعدوك!</li>
 <li>👥 اللعب الثنائي: يكون كل لاعب على هاتفه، وتظهر قلعة كل لاعب في أسفل شاشته.</li></ul></details>`;
 function showMenu(){
   showOv(`<h1>⚔️ حصار القلاع</h1><p class="sub">قلعتان، خندقان، أرض محايدة، ومنتصر واحد</p>
