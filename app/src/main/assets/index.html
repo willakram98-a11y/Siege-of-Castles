@@ -163,9 +163,9 @@ const R3 = (function(){
   'use strict';
   const TILT = 40 * Math.PI / 180, K = Math.sin(TILT), HC = Math.cos(TILT), DIST = 90;
   // ارتفاع كل مبنى ووحدة (يُستعمل للّمس ولأشرطة الصحة)
-  // CH: ارتفاع مباني القلعة (السور والبوابة والبرج والحصن) نسبةً إلى تصميمها، فتبدو أقصر وأعرض
-  const CH = .75, CASTLE_PARTS = {keep:1, wall:1, gate:1, tower:1};
-  const SH = {keep:4.3 * CH, wall:1.5 * CH, gate:1.85 * CH, tower:2.6 * CH, bridge:.12, lumber:1.2, quarry:1.05, goldmine:1.35, ironmine:1.1, workshop:1.75};
+  // CH: ارتفاع الحصن نسبةً إلى تصميمه (الأسوار والأبراج بارتفاعها الكامل)
+  const CH = .75, CASTLE_PARTS = {keep:1};
+  const SH = {keep:4.3 * CH, wall:1.5, gate:1.85, tower:2.6, bridge:.12, lumber:1.2, quarry:1.05, goldmine:1.35, ironmine:1.1, workshop:1.75};
   const UH = {footman:.66, archer:.66, knight:.97, trebuchet:2.0}, US = .8; // US: حجم الجنود على الخريطة
   const WALL_TOP = 1.25, MOAT_BED = -.7, WATER_Y = -.24;
   const STONE = '#dfe3e8', STONE2 = '#c9cfd6', STONE_D = '#a3abb5', DARK = '#3a3d44', WOOD = '#c27a43', WOOD_D = '#7f4a24', PLANK = '#e99a5f', SKIN = '#f3c193';
@@ -551,7 +551,7 @@ const R3 = (function(){
     bx(g, '#f5d36b', .06, .06, .06, 0, .95, 0);
     return g.done();
   }
-  const FLAGS = {keep:[[0, 4.1 * CH, -.1]], tower:[[0, 2.4 * CH, 0]], goldmine:[[.7, .75, -.6]], workshop:[[-1.3, 1.1, -.8]], lumber:[[-.9, .06, -.4]], quarry:[], ironmine:[[.75, .06, .35]]};
+  const FLAGS = {keep:[[0, 4.1 * CH, -.1]], tower:[[0, 2.4, 0]], goldmine:[[.7, .75, -.6]], workshop:[[-1.3, 1.1, -.8]], lumber:[[-.9, .06, -.4]], quarry:[], ironmine:[[.75, .06, .35]]};
 
   /* ---------- الطبيعة: أشجار وصخور ورواسب ---------- */
   function treeRound(){ const g = new Geo(); bx(g, '#d0682f', .13, .5, .13, 0, 0, 0); bx(g, '#d0682f', .06, .25, .06, .1, .32, 0, 0, 0, -.6); ico(g, '#45b33a', .36, 0, .78, 0, 1, 1.05, 1); ico(g, '#5cc444', .24, .18, .98, .08); return g.done(); }
@@ -862,7 +862,7 @@ const R3 = (function(){
         if (want !== null) r.ang += wrap(want - r.ang) * Math.min(1, dt * 10);
         r.x = cx; r.z = cz;
         let el = 0;
-        if (u.size === 1 && onOwnWall(u)) el = WALL_TOP * CH;
+        if (u.size === 1 && onOwnWall(u)) el = WALL_TOP;
         else if (slowAt(u, u.cx, u.cy)) el = -.34;
         else { const b = structAt(u.cx, u.cy); if (b && b.type === 'bridge') el = .08; }
         r.el += (el - r.el) * Math.min(1, dt * 9);
