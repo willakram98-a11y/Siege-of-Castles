@@ -2085,7 +2085,10 @@ let VK = 1, VH = 0, GFX = '3d';
 let cv, ctx, dpr = 1, W = 0, H = 0, CS = 26, camX = 0, camY = 0, tc = null, uiTick = 0, lastTs = 0, tab = 'army', menuDiff = 'normal';
 const TB = 40; // دقة رسم الأرضية المسبقة لكل مربع
 const $ = id => document.getElementById(id);
-const minZoom = () => Math.max(5, Math.min(W / COLS, H / (ROWS * VK)));
+// أقصى تصغير: لا تعرض الشاشة أكثر من ٢٠ مربعاً عرضاً و٤٠ طولاً (الهاتف بالطول)، أو ٤٠×٢٠ بالعرض
+const VIEW_MAX = [20, 40];
+const minZoom = () => { const land = W > H, mc = VIEW_MAX[land ? 1 : 0], mr = VIEW_MAX[land ? 0 : 1];
+  return Math.min(maxZoom(), Math.max(5, W / mc, H / (mr * VK))); };
 const maxZoom = () => 60;
 
 /* الكاميرا تعمل في «فضاء العرض»؛ عند الضيف يُقلب العالم 180° لتظهر قلعته في الأسفل */
