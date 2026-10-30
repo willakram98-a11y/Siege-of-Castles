@@ -264,6 +264,7 @@ const R3 = (function(){
     },
     // الحصن: برج دائري ضخم من دور واحد بسطح خشبي وشرفات، وأربعة أبراج صغيرة حوله
     keep(g, P){
+      // مساحته ٤×٣ مربعات، فيُرسم البرج الدائري أقصر قليلاً في العمق (Z) ليبقى داخلها
       const C = (col, r, h, x, y, z, seg) => g.add(new T3.CylinderGeometry(r, r, h, seg || 16), col, M(x, y + h / 2, z));
       const ring = (n, R, y, size, cx, cz, col) => { for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2; bx(g, col || STONE, size, size * .9, size * .75, cx + Math.sin(a) * R, y, cz + Math.cos(a) * R, 0, a, 0); } };
       C(STONE_D, 1.95, .26, 0, 0, 0, 20);
@@ -742,7 +743,7 @@ const R3 = (function(){
     X0 = -5; X1 = COLS + 5; Z0 = -18; Z1 = ROWS + 18; // جانبا الميدان لا يظهران إلا قليلاً
     buildGround();
     buildDecor();
-    for (const type in BUILD) for (let t = 0; t < 2; t++){ const g = new Geo(); BUILD[type](g, PAL[t]); const geo = g.done(); if (CASTLE_PARTS[type]) geo.scale(1, CH, 1); pools['s' + type + t] = new Pool(geo, mat, {cap:type === 'wall' ? 96 : 16, recv:true, colored:true}); }
+    for (const type in BUILD) for (let t = 0; t < 2; t++){ const g = new Geo(); BUILD[type](g, PAL[t]); const geo = g.done(); if (CASTLE_PARTS[type]) geo.scale(1, CH, type === 'keep' ? .76 : 1); pools['s' + type + t] = new Pool(geo, mat, {cap:type === 'wall' ? 96 : 16, recv:true, colored:true}); }
     for (const type in BUILD) pools['sc' + type] = new Pool(scaffold(type), mat, {cap:8});
     // الظل الملوّن يُرسم بعد الأرض والمباني وقبل الوحدات، فتغطيه الوحدة حيث تكون ظاهرة
     const xray = t => new T3.MeshBasicMaterial({color:PAL[t].light, depthFunc:T3.GreaterDepth, depthWrite:false});
@@ -975,7 +976,7 @@ const N0 = 31, N1 = 30 + NEUT;       // أول وآخر صف محايد
 const MOAT_TOPS = [28, N1 + 1], MOAT_W = 3;   // لا يُعبر الخندق إلا فوق جسر مكتمل
 const isMoat = y => (y >= 28 && y <= 30) || (y > N1 && y <= N1 + 3);
 const isNeutral = y => y >= N0 && y <= N1;
-const KEEP_W = 4, KEEP_H = 4, MIDX = 25;
+const KEEP_W = 4, KEEP_H = 3, MIDX = 25;   // الحصن ٤×٣ يترك صفّين خاليين أمامه وخلفه داخل القلعة
 const idx = (x, y) => y * COLS + x;
 /* هندسة القلعة (معرّفة لقلعتك، وقلعة العدو صورتها المعكوسة تماماً) */
 const CASTLE = (function(){
