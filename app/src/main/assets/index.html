@@ -56,6 +56,16 @@ html,body{margin:0;height:100%;background:#0b1018;color:#ece6d6;font-family:"Seg
 .cg button:active{transform:scale(.94)}
 .cg .atk{background:#5b1e1e;border-color:#9b3434}
 .cg .def{background:#1e3a5b;border-color:#2f5d93}
+.bg{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.bg button{height:50px;min-width:0;overflow:hidden;background:#243043;border:1px solid #3a4a61;color:#ece6d6;border-radius:9px;font-family:inherit;padding:0 1px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.1}
+.bg button:active{transform:scale(.94)}
+.bg .ic{font-size:13px;line-height:1}
+.bg .nm{font-size:10.5px;font-weight:700;white-space:nowrap}
+.bg .co{font-size:8.5px;direction:ltr;display:flex;flex-wrap:wrap;justify-content:center;gap:0 2px;line-height:1.15}
+.bg button.dis{opacity:.45}
+.bg button.on{outline:2px solid #fbbf24}
+.bg .tool{background:#3b3223;border-color:#6b5a32}
+.bg .tool.red{background:#3e2222;border-color:#7f3535}
 #placeBar{position:absolute;top:8px;left:8px;right:8px;background:rgba(17,23,33,.94);border:1px solid #fbbf24;border-radius:12px;padding:6px 8px;display:flex;align-items:center;gap:6px;z-index:5}
 #placeBar.demo{border-color:#ef4444}
 #placeBar span{flex:1;font-size:12px}
@@ -2994,10 +3004,11 @@ function setTab(t){
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   renderTab();
 }
+const BSHORT = {wall:'جدار', gate:'بوابة', tower:'برج', bridge:'جسر', lumber:'أخشاب', quarry:'أحجار', goldmine:'منجم ذهب', ironmine:'منجم حديد', workshop:'ورشة'};
 function renderTab(){
   if (HEADLESS) return;
   const tb = $('tabBody');
-  tb.classList.toggle('grid', tab === 'cmd');
+  tb.classList.toggle('grid', tab !== 'army');
   let h = '';
   if (tab === 'army'){
     for (const t of ['footman','archer','knight','trebuchet']){
@@ -3005,12 +3016,14 @@ function renderTab(){
       h += `<button class="card" data-train="${t}"><span class="q" data-q="${t}"></span><div class="ic">${d.icon}</div><div class="nm">${d.name}</div><div class="in">${d.info}</div><div class="co">${costHtml(d.cost)}</div></button>`;
     }
   } else if (tab === 'build'){
-    h += `<button class="card tool ${repairMode ? 'on' : ''}" data-tool="repair"><div class="ic">🔧</div><div class="nm">إصلاح</div><div class="in">يصلح هيكلاً تالفاً</div><div class="co">🪨/🪵</div></button>`;
-    h += `<button class="card tool red ${demoMode ? 'on' : ''}" data-tool="demolish"><div class="ic">🪓</div><div class="nm">هدم</div><div class="in">المناجم والمعامل الخاصة بك</div><div class="co">↩ ٥٠٪</div></button>`;
+    // أزرار صغيرة في شبكة من صفّين بلا تمرير (كتبويب الأوامر)؛ وصف كل مبنى يظهر في شريط الموقع عند اختياره
+    h += `<div class="bg"><button class="tool ${repairMode ? 'on' : ''}" data-tool="repair"><div class="ic">🔧</div><div class="nm">إصلاح</div><div class="co">🪨/🪵</div></button>`;
+    h += `<button class="tool red ${demoMode ? 'on' : ''}" data-tool="demolish"><div class="ic">🪓</div><div class="nm">هدم</div><div class="co">↩ ٥٠٪</div></button>`;
     for (const t of ['wall','gate','tower','bridge','lumber','quarry','goldmine','ironmine','workshop']){
       const d = SDEF[t];
-      h += `<button class="card" data-build="${t}"><div class="ic">${d.icon}</div><div class="nm">${d.name}</div><div class="in">${d.info}</div><div class="co">${costHtml(d.cost)}</div></button>`;
+      h += `<button data-build="${t}"><div class="ic">${d.icon}</div><div class="nm">${BSHORT[t]}</div><div class="co">${costHtml(d.cost)}</div></button>`;
     }
+    h += '</div>';
   } else {
     const c = {footman:0, archer:0, knight:0, trebuchet:0};
     selection.forEach(u => c[u.type]++);
@@ -3074,7 +3087,7 @@ function startPlace(type){
   const pb = $('placeBar'); pb.classList.remove('hidden', 'demo');
   $('pOk').textContent = '✔ ابنِ';
   $('pRot').classList.toggle('hidden', d.w === d.h || type === 'bridge');
-  $('placeTxt').textContent = `${d.icon} ${d.name}: اضغط على الخريطة لاختيار الموقع`;
+  $('placeTxt').textContent = `${d.icon} ${d.name} (${d.info}): اضغط على الخريطة لاختيار الموقع`;
   if (type === 'bridge'){ const [wx] = s2w(W / 2, H / 2); centerOn(wx, TEAM[ME].homeMoat + 1.5); $('placeTxt').textContent = '🌉 اضغط على أحد الخندقين لوضع الجسر'; }
   renderTab();
 }
