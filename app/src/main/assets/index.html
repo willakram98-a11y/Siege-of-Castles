@@ -413,9 +413,9 @@ const R3 = (function(){
     },
     // الحصن: برج دائري أبيض من دور واحد بسطح خشبي وشرفات، وأربعة أبراج صغيرة بأسقف مخروطية مربّعة البلاط
     keep(g, P){
-      // منصّة حجرية منخفضة بمساحة الحصن كلها، والبرج أصغر وأقصر فوقها
-      g.add(new T3.CylinderGeometry(1, 1, .08, 28), STONE_D, M(0, .04, 0, 0, 0, 0, 1.9, 1, 1.4));
-      g.add(new T3.CylinderGeometry(1, 1, .02, 28), '#e6e1d6', M(0, .09, 0, 0, 0, 0, 1.84, 1, 1.35));
+      // منصّة حجرية مستديرة منخفضة بمساحة الحصن كلها (٤×٤)، والبرج فوقها
+      g.add(new T3.CylinderGeometry(1.9, 1.9, .08, 32), STONE_D, M(0, .04, 0));
+      g.add(new T3.CylinderGeometry(1.84, 1.84, .02, 32), '#e6e1d6', M(0, .09, 0));
       scyl(g, 1.0, .64, 0, .1, 0, 22, null, .17);
       g.add(new T3.CylinderGeometry(1.08, 1.04, .1, 22), STONE2, M(0, .79, 0));
       g.add(new T3.CylinderGeometry(.98, .98, .02, 22), '#d9874a', M(0, .845, 0));
@@ -1136,21 +1136,21 @@ const HEADLESS = typeof document === 'undefined';
    الصفوف (من الأعلى): أرض العدو 0-27 وفيها قلعته | خندق 28-30 | الأرض المحايدة 31-88 | خندق 89-91 | أرضك 92-119 وفيها قلعتك
    كل قلعة سور كامل يحيط بالحصن من الجهات الأربع، بأبراج في الزوايا وبوابات في كل جهة، وحولها أرض مكشوفة */
 const NEUT = 58, YSH = NEUT - 8;   // صفوف الأرض المحايدة، وYSH: إزاحة أرضك عن التصميم الأصلي (٨ صفوف محايدة)
-const COLS = 50, ROWS = 62 + NEUT;   // خلف كل قلعة 13 صفاً من الأرض المفتوحة
+const COLS = 50, ROWS = 62 + NEUT;   // خلف كل قلعة 12 صفاً من الأرض المفتوحة
 const N0 = 31, N1 = 30 + NEUT;       // أول وآخر صف محايد
 const MOAT_TOPS = [28, N1 + 1], MOAT_W = 3;   // لا يُعبر الخندق إلا فوق جسر مكتمل
 const isMoat = y => (y >= 28 && y <= 30) || (y > N1 && y <= N1 + 3);
 const isNeutral = y => y >= N0 && y <= N1;
-const KEEP_W = 4, KEEP_H = 3, MIDX = 25;   // الحصن ٤×٣ يترك صفّين خاليين أمامه وخلفه داخل القلعة
+const KEEP_W = 4, KEEP_H = 4, MIDX = 25;   // القلعة مربّعة ١٠×١٠، والحصن ٤×٤ في وسطها يترك صفّين خاليين من كل جهة
 const idx = (x, y) => y * COLS + x;
 /* هندسة القلعة (معرّفة لقلعتك، وقلعة العدو صورتها المعكوسة تماماً) */
 const CASTLE = (function(){
   const mp = ([x, y]) => [COLS - 1 - x, ROWS - 1 - y];
   const mr = ([x, y], w, h) => [COLS - x - w, ROWS - y - h];
   const Y = y => y + YSH;
-  const base = {box:{x0:19, y0:Y(48), x1:30, y1:Y(56)},
-    gates:[[24,Y(48)],[25,Y(48)],[24,Y(56)],[25,Y(56)],[19,Y(52)],[30,Y(52)]],
-    towers:[[18,Y(47)],[30,Y(47)],[18,Y(56)],[30,Y(56)]],
+  const base = {box:{x0:20, y0:Y(48), x1:29, y1:Y(57)},
+    gates:[[24,Y(48)],[25,Y(48)],[24,Y(57)],[25,Y(57)],[20,Y(52)],[20,Y(53)],[29,Y(52)],[29,Y(53)]],
+    towers:[[19,Y(47)],[29,Y(47)],[19,Y(57)],[29,Y(57)]],
     keep:[23,Y(51)]};
   const build = (b, T) => {
     const c = {T, box:b.box, gates:b.gates, towers:b.towers, keep:b.keep, ring:[], ringSet:new Set(), gateSet:new Set()};
@@ -3153,7 +3153,7 @@ function prodPops(dt){
 /* ================== اللعب الثنائي: المزامنة ==================
    المضيف يشغّل المحاكاة الكاملة ويرسل «لقطة» للضيف عشر مرات في الثانية،
    والضيف يرسل أوامره فقط. هذا يمنع اختلاف الحالة بين الهاتفين. */
-const NETV = 3;
+const NETV = 4;
 const UT = ['footman','archer','knight','trebuchet'], ST = Object.keys(SDEF), OT = ['idle','move','attack','assault','build','repair','demolish'];
 function netSend(o){ if (NET.connected && NET.send) try { NET.send(o); } catch(e){} }
 function sigOf(s){ return Math.ceil(s.hp) + '|' + (s.built ? 1 : 0) + '|' + ((s.progress * 100) | 0) + '|' + (s.demo ? 1 : 0) + '|' + (s.queue ? s.queue.map(q => q.type[0] + ((q.t * 10) | 0)).join(',') : ''); }
