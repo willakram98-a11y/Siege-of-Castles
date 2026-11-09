@@ -166,12 +166,15 @@ ${Oe}`;q.test(K)&&(j(H),H=setTimeout(V,Ps))},pe=()=>{k.iceGatheringState==="comp
 <script>
 /* ================== العرض ثلاثي الأبعاد ==================
    يرسم العالم نفسه بمجسمات مكعّبة منخفضة المضلعات عبر Three.js، ولا يغيّر شيئاً في منطق اللعبة.
-   الكاميرا مائلة بزاوية ثابتة وإسقاطها متوازٍ (orthographic)، فتبقى العلاقة بين الشاشة والأرض خطية:
-   خانة الأرض تظهر بعرض CS وارتفاع CS×K، وكل وحدة ارتفاع ترفع الشيء على الشاشة CS×HC.
+   الكاميرا إيزومترية كلاسيكية: إسقاط متوازٍ (orthographic) بلا تشويه منظوري،
+   ميل (Pitch) ‏35.264° ودوران (Yaw) ‏45° حول مركز الخريطة، ولا لفّ (Roll = 0).
+   الخريطة تُدار 45° في «فضاء العرض» (toView/fromView)، ثم تبقى العلاقة بين الشاشة والأرض خطية:
+   وحدة العرض تظهر بعرض CS وارتفاع CS×K، وكل وحدة ارتفاع ترفع الشيء على الشاشة CS×HC.
    المحاور: X = عمود الخريطة، Z = صفها، Y = الارتفاع. كل مجسم مبنيّ ووجهه الأمامي نحو +Z. */
 const R3 = (function(){
   'use strict';
-  const TILT = 40 * Math.PI / 180, K = Math.sin(TILT), HC = Math.cos(TILT), DIST = 90;
+  // Pitch = atan(1/√2) ≈ 35.264° (الإيزومتري الحقيقي)، Yaw = 45°، Roll = 0
+  const TILT = Math.atan(1 / Math.SQRT2), YAW = Math.PI / 4, K = Math.sin(TILT), HC = Math.cos(TILT), DIST = 90;
   // ارتفاع كل مبنى ووحدة (يُستعمل للّمس ولأشرطة الصحة). القلعة منخفضة فلا تحجب الجنود: السور أقصر من الجندي
   const SH = {keep:1.0, wall:.63, gate:.91, tower:1.5, bridge:.12, lumber:.8, quarry:.74, goldmine:.84, ironmine:.66, workshop:1.1};
   const UH = {footman:.9, archer:.9, knight:1.32, trebuchet:2.0}, US = 1.08; // US: حجم الجنود على الخريطة
@@ -779,7 +782,12 @@ const R3 = (function(){
   };
 
   /* ---------- الأرض والخنادق ---------- */
-  let X0 = 0, X1 = 0, Z0 = 0, Z1 = 0; // حدود الأرض المرسومة: الميدان وحوله غابة
+  let X0 = 0, X1 = 0, Z0 = 0, Z1 = 0, GU = 0, GV = 0; // حدود الأرض المرسومة: الميدان وحوله غابة
+  // هل الخانة داخل مستطيل العرض المُدار (نصفا قطريه GU وGV)؟ ما خارجه لا يظهر على الشاشة أبداً
+  function onGround(x, y){
+    const c = Math.cos(YAW), s = Math.sin(YAW), dx = x + .5 - COLS / 2, dy = y + .5 - ROWS / 2;
+    return Math.abs(c * dx - s * dy) <= GU && Math.abs(s * dx + c * dy) <= GV;
+  }
   function hash(x, y){ let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
   function groundColor(x, y){
     const ch = (x + y) & 1, n = hash(x, y), inMap = x >= 0 && x < COLS && y >= 0 && y < ROWS;
@@ -802,12 +810,14 @@ const R3 = (function(){
       c.set(col); P.push(ax, ay, az, bx_, by, bz, cx, cy, cz, ax, ay, az, cx, cy, cz, dx, dy, dz); for (let i = 0; i < 6; i++) C.push(c.r, c.g, c.b);
     };
     for (let y = Z0; y < Z1; y++) for (let x = X0; x < X1; x++){
+      if (!onGround(x, y)) continue;
       if (isMoat(y)) quad(x, MOAT_BED, y, x, MOAT_BED, y + 1, x + 1, MOAT_BED, y + 1, x + 1, MOAT_BED, y, (x + y) & 1 ? '#d8b77f' : '#d2b078');
       else quad(x, 0, y, x, 0, y + 1, x + 1, 0, y + 1, x + 1, 0, y, groundColor(x, y));
     }
     // ضفاف الخنادق
     for (const my of MOAT_TOPS){
       for (let x = X0; x < X1; x++){
+        if (!onGround(x, my)) continue;
         quad(x, 0, my, x + 1, 0, my, x + 1, MOAT_BED, my, x, MOAT_BED, my, (x & 1) ? '#e9c88e' : '#e2c086');
         quad(x + 1, 0, my + MOAT_W, x, 0, my + MOAT_W, x, MOAT_BED, my + MOAT_W, x + 1, MOAT_BED, my + MOAT_W, (x & 1) ? '#e9c88e' : '#e2c086');
       }
@@ -856,7 +866,7 @@ const R3 = (function(){
     const lists = {};
     const add = (k, x, z, s, ry, cell) => { const key = k + (cell < 0 ? '|out' : ''); (lists[key] = lists[key] || []).push({m:M(x, 0, z, 0, ry, 0, s, s, s), cell}); };
     for (let y = Z0; y < Z1; y++) for (let x = X0; x < X1; x++){
-      if (isMoat(y)) continue;
+      if (isMoat(y) || !onGround(x, y)) continue;
       const n = hash(x, y), n2 = hash(y + 99, x + 7), n3 = hash(x * 3 + 1, y * 5 + 2);
       const inMap = x >= 0 && x < COLS && y >= 0 && y < ROWS;
       if (!inMap){
@@ -911,7 +921,11 @@ const R3 = (function(){
     sun = new T3.DirectionalLight('#fff4e2', 2.2);
     scene.add(sun); scene.add(sun.target);
     mat = new T3.MeshLambertMaterial({vertexColors:true});
-    X0 = -5; X1 = COLS + 5; Z0 = -18; Z1 = ROWS + 18; // جانبا الميدان لا يظهران إلا قليلاً
+    // الأرض تغطي مستطيل العرض المُدار 45° كله (مع هامش)، فلا تظهر حواف فارغة في زوايا الشاشة
+    { const c = Math.cos(YAW), s = Math.sin(YAW);
+      GU = (COLS * c + ROWS * s) / 2 + 6; GV = (COLS * s + ROWS * c) / 2 + 6;
+      const rx = GU * c + GV * s, rz = GU * s + GV * c;
+      X0 = Math.floor(COLS / 2 - rx); X1 = Math.ceil(COLS / 2 + rx); Z0 = Math.floor(ROWS / 2 - rz); Z1 = Math.ceil(ROWS / 2 + rz); }
     buildGround();
     buildDecor();
     for (const type in BUILD) for (let t = 0; t < 2; t++){ const g = new Geo(); BUILD[type](g, PAL[t]); pools['s' + type + t] = new Pool(g.done(), mat, {cap:type === 'wall' ? 96 : 16, colored:true}); }
@@ -980,15 +994,16 @@ const R3 = (function(){
   function wrap(a){ while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
 
   function updateCamera(){
-    const vx = (camX + W / 2) / CS, vy = (camY + H / 2) / (CS * K);
-    let wx = FLIP ? COLS - vx : vx, wz = FLIP ? ROWS - vy : vy;
+    // مركز الشاشة في فضاء العرض ← نقطة الأرض التي تنظر إليها الكاميرا
+    let [wx, wz] = fromView((camX + W / 2) / CS, (camY + H / 2) / (CS * K));
     if (G && G.shake > 0){ wx += (Math.random() - .5) * .14; wz += (Math.random() - .5) * .14; }
-    const s = FLIP ? -1 : 1;
+    // اتجاه الكاميرا الأفقي: Yaw ‏45°، ويُزاد 180° عند الضيف لتظهر قلعته في الأسفل
+    const yaw = YAW + (FLIP ? Math.PI : 0), sy = Math.sin(yaw), cy = Math.cos(yaw), hd = Math.cos(TILT) * DIST;
     cam.left = -W / 2 / CS; cam.right = W / 2 / CS; cam.top = H / 2 / CS; cam.bottom = -H / 2 / CS;
-    cam.position.set(wx, Math.sin(TILT) * DIST, wz + s * Math.cos(TILT) * DIST);
-    cam.up.set(0, 1, 0); cam.lookAt(wx, 0, wz); cam.updateProjectionMatrix();
+    cam.position.set(wx + sy * hd, Math.sin(TILT) * DIST, wz + cy * hd);
+    cam.up.set(0, 1, 0); cam.lookAt(wx, 0, wz); cam.updateProjectionMatrix(); // Roll = 0
     // الشمس من يسار الشاشة وأمامها (جهة الناظر)
-    sun.position.set(wx - s * 22, 40, wz + s * 18); sun.target.position.set(wx, 0, wz); sun.target.updateMatrixWorld();
+    sun.position.set(wx - cy * 22 + sy * 18, 40, wz + sy * 22 + cy * 18); sun.target.position.set(wx, 0, wz); sun.target.updateMatrixWorld();
   }
 
   function render(){
@@ -1136,7 +1151,7 @@ const R3 = (function(){
     } else ghost.g.visible = false;
     renderer.render(scene, cam);
   }
-  return {K, HC, SH, UH, info:() => renderer && renderer.info.render, init, setQuality, resize, render, structTop, unitEl, ready:() => ok, active:() => ok && canvas && canvas.style.display !== 'none'};
+  return {K, HC, YAW, SH, UH, info:() => renderer && renderer.info.render, init, setQuality, resize, render, structTop, unitEl, ready:() => ok, active:() => ok && canvas && canvas.style.display !== 'none'};
 })();
 </script>
 <script>
@@ -2298,7 +2313,7 @@ const maxZoom = () => 60;
 
 /* الكاميرا تعمل في «فضاء العرض»؛ عند الضيف يُقلب العالم 180° لتظهر قلعته في الأسفل */
 function clampCam(){
-  const ww = COLS * CS, wh = ROWS * CS * VK;
+  const ww = VW * CS, wh = VD * CS * VK;
   camX = ww <= W ? -(W - ww) / 2 : Math.max(0, Math.min(ww - W, camX));
   camY = wh <= H ? -(H - wh) / 2 : Math.max(0, Math.min(wh - H, camY));
 }
@@ -2308,16 +2323,32 @@ function setZoom(z, sx, sy){
   camX = vx * CS - sx; camY = vy * CS * VK - sy;
   clampCam();
 }
-const toView = (wx, wy) => FLIP ? [COLS - wx, ROWS - wy] : [wx, wy];
-function s2w(sx, sy){ const vx = (sx + camX) / CS, vy = (sy + camY) / (CS * VK); return FLIP ? [COLS - vx, ROWS - vy] : [vx, vy]; }
+/* فضاء العرض: الخريطة (مقلوبة عند الضيف) مُدارة بزاوية Yaw حول مركزها، ومُزاحة لتبدأ من الصفر.
+   في العرض المجسّم Yaw = 45° (منظور إيزومتري)، وفي العرض المسطّح 0 فيطابق فضاءُ العرض الخريطةَ.
+   VW×VD: أبعاد المستطيل المحيط بالخريطة المُدارة. */
+let VC = 1, VS = 0, VW = COLS, VD = ROWS;
+function setYaw(a){ VC = Math.cos(a); VS = Math.sin(a); VW = COLS * Math.abs(VC) + ROWS * Math.abs(VS); VD = COLS * Math.abs(VS) + ROWS * Math.abs(VC); }
+function toView(wx, wy){
+  if (FLIP){ wx = COLS - wx; wy = ROWS - wy; }
+  const dx = wx - COLS / 2, dy = wy - ROWS / 2;
+  return [VC * dx - VS * dy + VW / 2, VS * dx + VC * dy + VD / 2];
+}
+function fromView(vx, vy){
+  const a = vx - VW / 2, b = vy - VD / 2, wx = VC * a + VS * b + COLS / 2, wy = -VS * a + VC * b + ROWS / 2;
+  return FLIP ? [COLS - wx, ROWS - wy] : [wx, wy];
+}
+function s2w(sx, sy){ return fromView((sx + camX) / CS, (sy + camY) / (CS * VK)); }
 function w2s(wx, wy){ const [vx, vy] = toView(wx, wy); return [vx * CS - camX, vy * CS * VK - camY]; }
 /* موضع نقطة على ارتفاع h فوق الأرض على الشاشة */
 function w2sH(wx, wy, h){ const [x, y] = w2s(wx, wy); return [x, y - (h || 0) * VH * CS]; }
 function centerOn(wx, wy){ const [vx, vy] = toView(wx, wy); camX = vx * CS - W / 2; camY = vy * CS * VK - H / 2; clampCam(); }
 function inView(x, y, w, h){
-  if (FLIP){ x = COLS - x - w; y = ROWS - y - h; }
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const a of [x, x + w]) for (const b of [y, y + h]){
+    const [p, q] = toView(a, b); x0 = Math.min(x0, p); x1 = Math.max(x1, p); y0 = Math.min(y0, q); y1 = Math.max(y1, q);
+  }
   const k = CS * VK, up = VH * CS * 4;
-  return (x + w) * CS >= camX - CS && x * CS <= camX + W + CS && (y + h) * k >= camY - k && y * k <= camY + H + k + up;
+  return x1 * CS >= camX - CS && x0 * CS <= camX + W + CS && y1 * k >= camY - k && y0 * k <= camY + H + k + up;
 }
 function resize(){
   const st = $('stage');
@@ -3755,7 +3786,7 @@ function setGfx(mode, save){
   GFX = mode;
   const on = mode !== '2d';
   $('gl').style.display = on ? 'block' : 'none';
-  VK = on ? R3.K : 1; VH = on ? R3.HC : 0;
+  VK = on ? R3.K : 1; VH = on ? R3.HC : 0; setYaw(on ? R3.YAW : 0);
   if (on) R3.setQuality(mode === 'fast' ? 'fast' : 'high');
   if (save) try { localStorage.setItem('gfx', mode); } catch (_){}
   if (c){ CS = Math.max(minZoom(), Math.min(maxZoom(), CS)); centerOn(c[0], c[1]); }
